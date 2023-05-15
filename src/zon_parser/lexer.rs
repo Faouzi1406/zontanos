@@ -2,12 +2,14 @@
 
 use std::fmt::Display;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Tokens {
     /// Contains all valid Operators
     Op(Operator),
     /// Contains all valid keywords
     Kw(Keywords),
+    ///  -> // comment I am
+    Comment,
     /// Could be anything that identifies another thing
     /// let **id** = "identifier";
     Identifier,
@@ -23,8 +25,9 @@ pub enum Tokens {
     Colon,
     /// ;
     SemiColon,
-    /// !
+    /// ,
     Comma,
+    /// !
     Bang,
     /// /
     Slash,
@@ -34,6 +37,8 @@ pub enum Tokens {
     Plus,
     /// -
     Min,
+    /// A tab
+    Tab,
     /// *
     Times,
     /// (
@@ -55,7 +60,7 @@ pub enum Tokens {
     InvalidToken(TokenErrorMessages),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Operator {
     /// =
     Eq,
@@ -81,7 +86,7 @@ pub enum Operator {
     Nq,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Keywords {
     /// let
     Let,
@@ -103,7 +108,7 @@ pub enum Keywords {
     Fn,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenErrorMessages {
     /// This would be a string with no end -> [`"Hello world!`] <- missing [`'"'`] at the end    
     StringNoEnd,
@@ -135,7 +140,7 @@ impl std::error::Error for TokenErrorMessages {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub line: usize,
     pub token_type: Tokens,
@@ -206,6 +211,7 @@ pub trait Tokenize {
     /// returns a [`Tokens::Op(Operator::String)`] token
     /// Expects '"' to be the previous character
     fn token_str(&mut self, line: usize) -> Token;
+    fn token_comment(&mut self, line: usize) -> Token;
     /// returns a [`Tokens::Op(Operator::Char)`] token
     /// Expects ''' to be the previous character
     fn token_char(&mut self, line: usize) -> Token;
@@ -247,6 +253,24 @@ impl Tokenize for Tokenizer {
         let str: String = tokens_until.into_iter().take_while(|x| *x != '"').collect();
         Token::new(line, Tokens::String, &str)
     }
+
+    fn token_comment(&mut self, line: usize) -> Token {
+        assert_eq!(self.prev_char, Some('/'));
+        let Some(token_slash) = self.next() else {
+           return Token::new(line, '/'.into(), "/");
+        };
+        match token_slash {
+            '/' => {
+                let tokens_until: String = self.until_char_mut('\n').iter().collect();
+                return Token::new(line, Tokens::Comment, &tokens_until);
+            }
+            _ => {
+                self.advance_back(1);
+                return Token::new(line, '/'.into(), "/");
+            }
+        }
+    }
+
     fn token_char(&mut self, line: usize) -> Token {
         assert_eq!(self.prev_char, Some('\''));
         let Some(tokens_until) = self.next() else {
@@ -276,6 +300,7 @@ impl Tokenize for Tokenizer {
             ),
         }
     }
+
     fn token_identifier(&mut self, line: usize) -> Token {
         assert!(self.prev_char.is_some());
         assert!(self.prev_char.unwrap().is_alphabetic());
@@ -292,13 +317,14 @@ impl Tokenize for Tokenizer {
         }
         Token::new(line, str.as_str().into(), &str)
     }
+
     fn token_eq(&mut self, line: usize) -> Token {
         if let Some(prev) = self.prev_char {
             assert_eq!(prev, '=');
             match self.next() {
                 Some(char) => {
                     match char {
-                        '=' => return Token::new(line, "==".into(), "==".into()),
+                        '=' => return Token::new(line, "==".into(), "=="),
                         _ => {
                             // we advance the iterator back with 1 since the previous token is needed for the tokenizer
                             self.advance_back(1);
@@ -318,6 +344,7 @@ impl Tokenize for Tokenizer {
             "no prev token",
         )
     }
+
     fn token_less(&mut self, line: usize) -> Token {
         if let Some(prev) = self.prev_char {
             assert_eq!(prev, '<');
@@ -344,6 +371,7 @@ impl Tokenize for Tokenizer {
             "no prev token",
         )
     }
+
     fn token_num(&mut self, line: usize) -> Token {
         if let Some(prev) = self.prev_char {
             assert!(prev.is_numeric());
@@ -381,6 +409,7 @@ impl Tokenize for Tokenizer {
             "no prev token",
         )
     }
+
     fn token_more(&mut self, line: usize) -> Token {
         if let Some(prev) = self.prev_char {
             assert_eq!(prev, '>');
@@ -407,6 +436,7 @@ impl Tokenize for Tokenizer {
             "no prev token",
         )
     }
+
     fn token_bang(&mut self, line: usize) -> Token {
         if let Some(prev) = self.prev_char {
             assert_eq!(prev, '!');
@@ -433,6 +463,7 @@ impl Tokenize for Tokenizer {
             "no prev token",
         )
     }
+
     fn token_and(&mut self, line: usize) -> Token {
         if let Some(prev) = self.prev_char {
             assert_eq!(prev, '&');
@@ -478,6 +509,7 @@ pub trait Lexer {
                 '\'' => tokens.push(tokenizer.token_char(line)),
                 '0'..='9' => tokens.push(tokenizer.token_num(line)),
                 'a'..='z' | 'A'..='Z' => tokens.push(tokenizer.token_identifier(line)),
+                '/' => tokens.push(tokenizer.token_comment(line)),
                 token => tokens.push(Token::new(line, token.into(), &token.to_string())),
             };
         }

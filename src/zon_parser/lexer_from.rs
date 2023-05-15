@@ -20,6 +20,7 @@ impl From<&str> for Tokens {
             "-" => Tokens::Min,
             "*" => Tokens::Times,
             "," => Tokens::Comma,
+            "\t" => Tokens::Tab,
             // All operator values
             "=" => Tokens::Op(Operator::Eq),
             "&" => Tokens::Op(Operator::And),
@@ -64,6 +65,7 @@ impl From<char> for Tokens {
             '-' => Tokens::Min,
             '*' => Tokens::Times,
             ',' => Tokens::Comma,
+            '\t' => Tokens::Tab,
             // All operator values
             '=' => Tokens::Op(Operator::Eq),
             '&' => Tokens::Op(Operator::And),
