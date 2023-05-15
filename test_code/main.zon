@@ -1,0 +1,9 @@
+fn add(i32 a, i32 b) i32 {
+	return a + b;
+}
+
+fn times(u32 a, u32 b) u32 {
+	return a * b;
+}
+
+fn main() {}

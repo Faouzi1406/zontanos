@@ -1,5 +1,5 @@
 use super::lexer::{Keywords, Operator, Tokens};
-use crate::lexer::TokenErrorMessages;
+use crate::zon_parser::lexer::TokenErrorMessages;
 
 impl From<&str> for Tokens {
     fn from(value: &str) -> Self {
@@ -16,6 +16,10 @@ impl From<&str> for Tokens {
             "^" => Tokens::Pointer,
             ":" => Tokens::Colon,
             ";" => Tokens::SemiColon,
+            "+" => Tokens::Plus,
+            "-" => Tokens::Min,
+            "*" => Tokens::Times,
+            "," => Tokens::Comma,
             // All operator values
             "=" => Tokens::Op(Operator::Eq),
             "&" => Tokens::Op(Operator::And),
@@ -56,6 +60,10 @@ impl From<char> for Tokens {
             '^' => Tokens::Pointer,
             ':' => Tokens::Colon,
             ';' => Tokens::SemiColon,
+            '+' => Tokens::Plus,
+            '-' => Tokens::Min,
+            '*' => Tokens::Times,
+            ',' => Tokens::Comma,
             // All operator values
             '=' => Tokens::Op(Operator::Eq),
             '&' => Tokens::Op(Operator::And),

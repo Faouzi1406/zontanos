@@ -227,3 +227,59 @@ pub fn test_identifiers() {
     assert_eq!(second_token.token_type, Tokens::Identifier);
     assert_eq!(second_token.value, "hello0");
 }
+
+#[test]
+pub fn test_syntax() {
+    let str = "fn add(u32 a, u32 b) { let a = b; return a; } fn main() {}";
+
+    let mut tokenizer = Tokenizer::new(str);
+    let lexer = Tokenizer::lex(&mut tokenizer);
+
+    let Some(first_token) = lexer.first() else {
+        panic_test!("Lexer test more tokens", "Error expected the first token of of lexer tokens to be Some(Kw) but got None");
+    };
+    assert_eq!(first_token.token_type, Tokens::Kw(Keywords::Fn));
+    assert_eq!(first_token.value, "fn");
+
+    let Some(second_token) = lexer.get(1) else {
+        panic_test!("Lexer test more tokens", "Error expected the second token of of lexer tokens to be Some(Identifier) but got None");
+    };
+    assert_eq!(second_token.token_type, Tokens::Identifier);
+    assert_eq!(second_token.value, "add");
+
+    let Some(third_token) = lexer.get(2) else {
+        panic_test!("lexer test more tokens", "error expected the third token of of lexer tokens to be some(openbrace) but got none");
+    };
+    assert_eq!(third_token.token_type, Tokens::OpenBrace);
+    assert_eq!(third_token.value, "(");
+
+    let Some(fourth_token) = lexer.get(3) else {
+        panic_test!("lexer test more tokens", "error expected the fourth token of of lexer tokens to be some(Identifier) but got none");
+    };
+    assert_eq!(fourth_token.token_type, Tokens::Identifier);
+    assert_eq!(fourth_token.value, "u32");
+
+    let Some(fifth_token) = lexer.get(4) else {
+        panic_test!("lexer test more tokens", "error expected the fifth token of of lexer tokens to be some(Identifier) but got none");
+    };
+    assert_eq!(fifth_token.token_type, Tokens::Identifier);
+    assert_eq!(fifth_token.value, "a");
+
+    let Some(sixth_token) = lexer.get(5) else {
+        panic_test!("lexer test more tokens", "error expected the sixth token of of lexer tokens to be some(Identifier) but got none");
+    };
+    assert_eq!(sixth_token.token_type, Tokens::Comma);
+    assert_eq!(sixth_token.value, ",");
+
+    let Some(eight_token) = lexer.get(8) else {
+        panic_test!("lexer test more tokens", "error expected the 8th token of of lexer tokens to be some(Identifier) but got none");
+    };
+    assert_eq!(eight_token.token_type, Tokens::CloseBrace);
+    assert_eq!(eight_token.value, ")");
+
+    let Some(let_token) = lexer.get(10) else {
+        panic_test!("lexer test more tokens", "error expected the 9th  of of lexer tokens to be some(Kw) but got none");
+    };
+    assert_eq!(let_token.token_type, Tokens::Kw(Keywords::Let));
+    assert_eq!(let_token.value, "let");
+}

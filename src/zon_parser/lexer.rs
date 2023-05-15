@@ -24,11 +24,18 @@ pub enum Tokens {
     /// ;
     SemiColon,
     /// !
+    Comma,
     Bang,
     /// /
     Slash,
     /// .
     Dot,
+    /// +
+    Plus,
+    /// -
+    Min,
+    /// *
+    Times,
     /// (
     OpenBrace,
     /// )

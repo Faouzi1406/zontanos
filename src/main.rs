@@ -1,12 +1,12 @@
 mod all_tests;
+mod ast;
 mod zon_parser;
 
-use crate::zon_parser::lexer::{self, Lexer, Tokenizer};
+use crate::zon_parser::lexer::{Lexer, Tokenizer};
 
 fn main() {
-    let tokens =
-        "==<=\"hello world!\"\n>=<=<>!='h';:>< hello hello_world hello1 let if else pub struct";
-    let mut tokenize = lexer::Tokenizer::new(tokens);
-    let token = Tokenizer::lex(&mut tokenize);
-    println!("{:#?}", token);
+    let file = std::fs::read_to_string("./main.zon").unwrap();
+    let mut lex = Tokenizer::new(&file);
+    let lex = Tokenizer::lex(&mut lex);
+    println!("{:#?}", lex);
 }
