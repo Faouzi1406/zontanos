@@ -22,7 +22,7 @@ pub enum VarErrors {
     ///
     /// .0 = variable name
     /// .1 = line
-    NameNotEmpty(String, u32),
+    NameNotEmpty(String, usize),
     /// error happens if a variable already has a type;
     ///
     /// # example
@@ -32,7 +32,7 @@ pub enum VarErrors {
     ///
     /// .0 = variable name
     /// .1 = line
-    VarHasType(String, u32),
+    VarHasType(String, usize),
     /// Error happens if a type doesn't exist;
     ///
     /// # example
@@ -42,7 +42,7 @@ pub enum VarErrors {
     ///
     /// .0 = type
     /// .1 = line
-    NotAType(String, u32),
+    NotAType(String, usize),
     /// Error happens if the incorrect type is being assigned;
     ///
     /// # example
@@ -52,7 +52,7 @@ pub enum VarErrors {
     ///
     /// .0 = type
     /// .1 = line
-    IncorrectType(String, u32),
+    IncorrectType(String, usize),
 }
 
 impl Display for VarErrors {
@@ -77,7 +77,7 @@ impl Display for VarErrors {
 pub struct Variable {
     var_name: String,
     var_type: VarTypes,
-    var_line: u32,
+    var_line: usize,
     is_constant: bool,
 }
 
@@ -95,12 +95,12 @@ impl Default for Variable {
 pub trait VarData {
     /// Sets the name of the variable struct, returns a error if the variable already has a
     /// name. Takes a optional line, if no line is provided it takes that of the variable.
-    fn set_name(&mut self, name: String, line: Option<u32>) -> Result<(), VarErrors>;
+    fn set_name(&mut self, name: String, line: Option<usize>) -> Result<(), VarErrors>;
     /// Gets the name of a variable, returns None if the variable name is of length 0
     fn get_name(&self) -> Option<&str>;
     // Sets the type of a variable, this type gets checked,  If the variable already has type this would also cause a
     // error to be returned;
-    fn set_type(&mut self, value: VarTypes, line: Option<u32>) -> Result<(), VarErrors>;
+    fn set_type(&mut self, value: VarTypes, line: Option<usize>) -> Result<(), VarErrors>;
     // Change the type of variable to a constant variable
     fn set_to_constant(&mut self);
     // Change the type of variable to a normal (not constant) variable
@@ -108,7 +108,7 @@ pub trait VarData {
 }
 
 impl VarData for Variable {
-    fn set_name(&mut self, name: String, line: Option<u32>) -> Result<(), VarErrors> {
+    fn set_name(&mut self, name: String, line: Option<usize>) -> Result<(), VarErrors> {
         if self.var_name.is_empty() {
             self.var_name = name;
             return Ok(());
@@ -126,7 +126,7 @@ impl VarData for Variable {
         Some(&self.var_name)
     }
 
-    fn set_type(&mut self, value: VarTypes, line: Option<u32>) -> Result<(), VarErrors> {
+    fn set_type(&mut self, value: VarTypes, line: Option<usize>) -> Result<(), VarErrors> {
         if self.var_type.is_none() {
             self.var_type = value;
             return Ok(());

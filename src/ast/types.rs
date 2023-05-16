@@ -21,7 +21,7 @@ impl VarTypes {
         self == &VarTypes::None
     }
 
-    pub fn from_str(value: &str, type_expected: &str, line: u32) -> Result<VarTypes, VarErrors> {
+    pub fn from_str(value: &str, type_expected: &str, line: usize) -> Result<VarTypes, VarErrors> {
         match type_expected {
             "i32" => {
                 let parse: Result<i32, _> = value.parse();
