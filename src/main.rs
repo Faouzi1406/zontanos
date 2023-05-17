@@ -16,7 +16,9 @@ fn main() {
         let taal: string = \"some string \" 
         let b: u8 = 254 
         let c: char = 'c' 
-        let other: string = \"wow\"";
+        let other: string = \"wow\"
+        let other: array:char = ['a''b''c']
+        ";
 
     let mut lex = Tokenizer::new(&string_vars);
     let lex = Tokenizer::lex(&mut lex);

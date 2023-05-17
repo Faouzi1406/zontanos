@@ -4,7 +4,7 @@ use super::variable::VarErrors;
 
 #[derive(PartialEq, Debug)]
 pub enum VarTypes {
-    Array { array: Vec<VarTypes> },
+    Array { array: Vec<VarTypes>, array_type: MarkerTypes },
     I32(i32),
     F32(f32),
     U8(u8),
@@ -20,6 +20,7 @@ pub enum VarTypes {
 /// They don't contain any value, just the type expected.
 ///
 /// It implements FromStr, where the string is the type of the marker.
+#[derive(Debug, PartialEq)]
 pub enum MarkerTypes {
     /// "string"
     String,
