@@ -40,6 +40,13 @@ impl From<&str> for Tokens {
             "struct" => Tokens::Kw(Keywords::Struct),
             "enum" => Tokens::Kw(Keywords::Enum),
             "pub" => Tokens::Kw(Keywords::Pub),
+            "string" => Tokens::Kw(Keywords::String),
+            "char" => Tokens::Kw(Keywords::Char),
+            "array" => Tokens::Kw(Keywords::Array),
+            "i32" => Tokens::Kw(Keywords::I32),
+            "f32" => Tokens::Kw(Keywords::F32),
+            "u8" => Tokens::Kw(Keywords::U8),
+            "i8" => Tokens::Kw(Keywords::I8),
             // Every other value found will be seen as a Identifier
             _ => Tokens::Identifier,
         }

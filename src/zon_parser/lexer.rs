@@ -100,12 +100,26 @@ pub enum Keywords {
     While,
     /// enum
     Enum,
-    // struct
+    /// struct
     Struct,
-    // pub
+    /// pub
     Pub,
-    // fn
+    /// fn
     Fn,
+    /// String
+    String,
+    /// char
+    Char,
+    /// I32
+    I32, 
+    /// F32
+    F32,
+    /// U8
+    U8,
+    /// I8
+    I8,
+    // array
+    Array,
 }
 
 #[derive(Debug, PartialEq, Clone)]

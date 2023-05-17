@@ -1,5 +1,6 @@
 use super::{Ast, AstNodeType};
 
+#[derive(Debug)]
 pub struct Block {
     pub body: Vec<Ast>,
     pub line: u32,

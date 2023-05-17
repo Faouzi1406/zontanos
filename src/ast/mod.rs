@@ -8,9 +8,10 @@ use self::function::Function;
 pub mod block;
 pub mod function;
 pub mod function_call;
-mod types;
+pub mod types;
 pub mod variable;
 
+#[derive(Debug)]
 pub enum AstNodeType {
     Variable(variable::Variable),
     Function(function::Function),
@@ -18,6 +19,15 @@ pub enum AstNodeType {
     Program,
 }
 
+impl AstNodeType {
+    
+}
+
+impl AstNodeType {
+    
+}
+
+#[derive(Debug)]
 pub struct Ast {
     ast_type: AstNodeType,
     body: Vec<AstNodeType>,

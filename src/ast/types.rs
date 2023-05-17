@@ -1,15 +1,56 @@
+use std::str::FromStr;
+
 use super::variable::VarErrors;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum VarTypes {
     Array { array: Vec<VarTypes> },
     I32(i32),
     F32(f32),
     U8(u8),
     I8(i8),
+    Char(char),
     String(String),
     Identifier(String),
     None,
+}
+
+/// These are the marker types of the language.
+///
+/// They don't contain any value, just the type expected.
+///
+/// It implements FromStr, where the string is the type of the marker.
+pub enum MarkerTypes {
+    /// "string"
+    String,
+    /// "identifier"
+    Identifier,
+    /// "char"
+    Char,
+    /// "i32"
+    I32,
+    /// "f32"
+    F32,
+    /// "u8"
+    U8,
+    /// "i8"
+    I8,
+}
+
+impl FromStr for MarkerTypes {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "string" => Ok(MarkerTypes::String),
+            "char" => Ok(MarkerTypes::Char),
+            "identifier" => Ok(MarkerTypes::Identifier),
+            "i32" => Ok(MarkerTypes::I32),
+            "f32" => Ok(MarkerTypes::F32),
+            "u8" => Ok(MarkerTypes::U8),
+            "i8" => Ok(MarkerTypes::I8),
+            value => Err(format!("Type {value} is not a type"))
+        }
+    }
 }
 
 impl VarTypes {
@@ -70,6 +111,20 @@ impl VarTypes {
                 match parse {
                     Ok(value) => {
                         Ok(VarTypes::I8(value))
+                    }
+                    Err(_) => {
+                        Err(VarErrors::IncorrectType(
+                            format!("type that was expected was {type_expected}, value wasn't a valid {type_expected}"),
+                            line,
+                        ))
+                    }
+                }
+            }
+            "char" => {
+                let parse: Result<char, _> = value.parse();
+                match parse {
+                    Ok(value) => {
+                        Ok(VarTypes::Char(value))
                     }
                     Err(_) => {
                         Err(VarErrors::IncorrectType(

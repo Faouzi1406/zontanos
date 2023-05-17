@@ -7,4 +7,5 @@ fn times(u32 a, u32 b) u32 {
 	return a * b;
 }
 
-fn main() {}
+fn main() {
+}

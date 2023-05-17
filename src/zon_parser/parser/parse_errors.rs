@@ -13,6 +13,10 @@ pub enum ParseErrors {
     /// If a next token was expected but the next token was None
     /// .0 = line
     ExpectedNext(usize),
+    /// If a type/value was expected, but token received was not a type/value
+    /// .0 = line
+    /// .1 = Type expected
+    ExpectedType(usize),
 }
 
 impl ToString for ParseErrors {
@@ -31,8 +35,12 @@ impl ToString for ParseErrors {
                 )
             }
             ParseErrors::ExpectedNext(line) => {
+                format!("Expected the next token to be some, but got none, on line {line}",)
+            }
+            // Todo: Add error handling based on it's type to improve errors
+            ParseErrors::ExpectedType(line) => {
                 format!(
-                    "Expected the next token to be some, but got none, on line {line}",
+                    "Expected the next token to be a value, but it wasn't a value, on line {line}"
                 )
             }
         }

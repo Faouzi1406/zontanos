@@ -74,6 +74,7 @@ impl Display for VarErrors {
 ///
 /// Use the method build on this struct to get the data within it.
 /// This is because the methods make sure the data you are receiving is valid data.
+#[derive(Debug)]
 pub struct Variable {
     var_name: String,
     var_type: VarTypes,

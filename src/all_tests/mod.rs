@@ -8,6 +8,8 @@
 
 #[cfg(test)]
 pub mod lexer_tests;
+#[cfg(test)]
+mod parser_tests;
 
 #[macro_export]
 macro_rules! panic_test {
