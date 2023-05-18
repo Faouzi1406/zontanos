@@ -13,15 +13,31 @@ fn main() {
     // let _ = Tokenizer::lex(&mut lex);
 
     let string_vars = "
+        {
         let taal: string = \"some string \" 
         let b: u8 = 254 
         let c: char = 'c' 
         let other: string = \"wow\"
         let other: array:char = ['a''b''c']
+        let some: array:char =  [ this ]  
+        }
+
+        fn main(string one, i32 other) f32 {
+        fn other(string other) f32 {
+        let wow:i32 = 1
+        }
+            {
+                let wow:string = other
+            }
+        }
         ";
 
+    // Lexing
     let mut lex = Tokenizer::new(&string_vars);
     let lex = Tokenizer::lex(&mut lex);
+    println!("{:#?}", lex);
+
+    // Parsing
     let mut parser = Parser::new(lex.clone());
     println!("{:#?}", parser.parse());
 }

@@ -11,7 +11,7 @@ pub mod function_call;
 pub mod types;
 pub mod variable;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AstNodeType {
     Variable(variable::Variable),
     Function(function::Function),
@@ -19,18 +19,16 @@ pub enum AstNodeType {
     Program,
 }
 
-impl AstNodeType {
-    
-}
-
-impl AstNodeType {
-    
+impl AsMut<AstNodeType> for AstNodeType {
+    fn as_mut(&mut self) -> &mut AstNodeType {
+        self
+    }
 }
 
 #[derive(Debug)]
 pub struct Ast {
-    ast_type: AstNodeType,
-    body: Vec<AstNodeType>,
+    pub ast_type: AstNodeType,
+    pub body: Vec<AstNodeType>,
 }
 
 impl Ast {

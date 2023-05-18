@@ -4,16 +4,18 @@
 //! It will be responsible for turning the tokens into the Ast.
 //! It should detect whenever there is a invalid set of tokens.
 
-use std::str::FromStr;
+use std::{println, str::FromStr};
 
 use crate::{
     ast::{
-        function::Function,
+        block::Block,
         types::{MarkerTypes, VarTypes},
         variable::{VarData, Variable},
         Ast, AstNodeType,
     },
-    zon_parser::{lexer::Operator, parser::parse_errors::ParseErrors},
+    zon_parser::{
+        lexer::Operator, parse_functions::FunctionParser, parser::parse_errors::ParseErrors,
+    },
 };
 
 use crate::zon_parser::lexer::{Keywords, Token, Tokens};
@@ -36,19 +38,16 @@ impl Iterator for Parser {
 
 impl Parser {
     /// Returns the previous from the current position
-    fn get_prev_token(&self) -> Option<&Token> {
+    pub fn get_prev_token(&self) -> Option<&Token> {
         if self.current_position == 0 {
             return None;
         }
         self.tokens.get(self.current_position - 1)
     }
 
-    /// Returns the next token from the current position without moving the current position
-    fn peak_next_token(&self) -> Option<&Token> {
-        if self.current_position + 1 == self.tokens.len() {
-            return None;
-        }
-        self.tokens.get(self.current_position + 1)
+    /// Advance the current position back by n amount
+    pub fn advance_back(&mut self, n: usize) {
+        self.current_position -= n;
     }
 }
 
@@ -62,8 +61,8 @@ pub trait Parse {
 pub trait ParseTokens {
     fn parse_var_assignment(&mut self) -> Result<Variable, String>;
     fn parse_type_assignment(&mut self, line: usize) -> Result<VarTypes, String>;
-    fn parse_function(&mut self) -> Result<Function, String>;
     fn parse_array(&mut self, array_type: MarkerTypes) -> Result<VarTypes, String>;
+    fn parse_block(&mut self) -> Result<Block, String>;
 }
 
 impl ParseTokens for Parser {
@@ -78,7 +77,7 @@ impl ParseTokens for Parser {
         match assign.token_type {
             // Equals we expect it to be a value assignment, so we continue
             Tokens::Op(Operator::Eq) => {}
-            // We would consider thi to be and array of which the value after the colon is a
+            // We would consider this to be and array of which the value after the colon is a
             // type
             Tokens::Colon => {
                 let Some(arr_type) = self.next() else {
@@ -88,9 +87,7 @@ impl ParseTokens for Parser {
             }
             // Any other token type would be considered as a wrong token
             token_type => {
-                return Err(
-                    ParseErrors::WrongToken(Tokens::Op(Operator::Eq), token_type).to_string(),
-                )
+                return Err(ParseErrors::WrongToken(Tokens::CloseBrace, token_type).to_string())
             }
         }
 
@@ -142,9 +139,15 @@ impl ParseTokens for Parser {
                     return Err(ParseErrors::ExpectedType(line).to_string());
                 }
                 let Ok(value_type) = VarTypes::from_str(&value.value, "char", line) else {
-                            return Err(format!("Expected the value to be the same type as the variable but it was not on line {line}"));
+                    return Err(format!("Expected the value to be the same type as the variable but it was not on line {line}"));
                 };
                 return Ok(value_type);
+            }
+            Tokens::Identifier => {
+                return Ok(VarTypes::Identifier(
+                    value.value,
+                    MarkerTypes::from_str(&var_type.value)?,
+                ));
             }
             _ => return Err(ParseErrors::ExpectedType(line).to_string()),
         }
@@ -173,6 +176,7 @@ impl ParseTokens for Parser {
         }
 
         let _ = variable.set_name(var_name.value, Some(var_name.line));
+        variable.var_line = prev_token.line;
 
         let Some(equal_sign) = self.next() else {
             return Err(ParseErrors::ExpectedNext(var_name.line).to_string());
@@ -198,10 +202,6 @@ impl ParseTokens for Parser {
         }
 
         return Ok(variable);
-    }
-
-    fn parse_function(&mut self) -> Result<Function, String> {
-        todo!()
     }
 
     fn parse_array(&mut self, array_type: MarkerTypes) -> Result<VarTypes, String> {
@@ -240,6 +240,10 @@ impl ParseTokens for Parser {
                 Tokens::Char => {}
                 Tokens::Number => {}
                 Tokens::FloatNumber => {}
+                Tokens::Identifier => {
+                    array.push(VarTypes::Identifier(token.value, array_type.clone()));
+                    continue;
+                }
                 _ => return Err(ParseErrors::ExpectedType(prev_token.line).to_string()),
             }
             // We match the expected type against the value of the received token.
@@ -274,19 +278,60 @@ impl ParseTokens for Parser {
                     };
                     array.push(token);
                 }
-                MarkerTypes::Identifier => {
-                    // Todo: Handle identifiers in arrays
-                }
+                // We can ignore identifiers since the get handled at the top
+                MarkerTypes::Identifier => {}
                 MarkerTypes::String => {
                     let Ok(token) = VarTypes::from_str(&token.value, "string", prev_token.line) else {
                         return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
                     };
                     array.push(token);
                 }
+                MarkerTypes::Array(_) => {}
+                MarkerTypes::None => {}
+                MarkerTypes::Void => {}
             }
         }
-        println!("{array:#?}");
         return Ok(VarTypes::Array { array, array_type });
+    }
+    fn parse_block(&mut self) -> Result<Block, String> {
+        let ast_vec = Vec::new();
+
+        let Some(open_block) = self.next() else {
+            return Err(ParseErrors::ExpectedNext(0).to_string());
+        };
+        if open_block.token_type != Tokens::OpenCurlyBracket {
+            return Err(
+                ParseErrors::InvalidToken(open_block.line, open_block.token_type).to_string(),
+            );
+        }
+
+        let mut block = Block {
+            body: ast_vec,
+            line: open_block.line,
+        };
+
+        while let Some(token) = self.next() {
+            match token.token_type {
+                Tokens::Kw(Keywords::Let) => {
+                    let var = self.parse_var_assignment()?;
+                    block.insert_node(AstNodeType::Variable(var));
+                }
+                Tokens::Kw(Keywords::Fn) => {
+                    let func = self.parse_function()?;
+                    block.insert_node(AstNodeType::Function(func));
+                }
+                Tokens::OpenCurlyBracket => {
+                    self.advance_back(1);
+                    block.insert_node(AstNodeType::Block(self.parse_block()?));
+                }
+                Tokens::CloseCurlyBracket => {
+                    return Ok(block);
+                }
+                token => return Err(ParseErrors::InvalidToken(open_block.line, token).to_string()),
+            }
+        }
+
+        Err(ParseErrors::NoEnd(open_block.line, AstNodeType::Block(block)).to_string())
     }
 }
 
@@ -305,6 +350,7 @@ impl Parse for Parser {
     fn parse(&mut self) -> Result<Ast, Vec<String>> {
         let mut errors = Vec::new();
         let mut ast = Ast::new();
+
         while let Some(token) = self.next() {
             match token.token_type {
                 // We ignore comments
@@ -317,11 +363,31 @@ impl Parse for Parser {
                     }
                     errors.push(assign.err().unwrap())
                 }
+                Tokens::Kw(Keywords::Fn) => {
+                    let function = self.parse_function();
+                    let Ok(parsed_function) = function else {
+                        errors.push(function.err().unwrap());
+                        return Err(errors);
+                    };
+                    ast.insert_node(AstNodeType::Function(parsed_function));
+                }
+                Tokens::OpenCurlyBracket => {
+                    self.advance_back(1);
+                    let parse_block = self.parse_block();
+                    let Ok(parsed_block) = parse_block else {
+                        errors.push(parse_block.err().unwrap());
+                        return Err(errors);
+                    };
+                    ast.insert_node(AstNodeType::Block(parsed_block));
+                }
                 //Tokens:: Parse tokens
-                _cant_continue => return Err(errors),
+                _cant_continue => {
+                    println!("found token: {_cant_continue:#?}");
+                    return Err(errors);
+                }
             }
         }
-        println!("{:#?}", errors);
+
         Ok(ast)
     }
 

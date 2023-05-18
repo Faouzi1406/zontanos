@@ -91,6 +91,8 @@ pub enum Keywords {
     /// let
     Let,
     /// if
+    /// return
+    Return,
     If,
     /// else
     Else,
@@ -106,12 +108,14 @@ pub enum Keywords {
     Pub,
     /// fn
     Fn,
+    /// void
+    Void,
     /// String
     String,
     /// char
     Char,
     /// I32
-    I32, 
+    I32,
     /// F32
     F32,
     /// U8

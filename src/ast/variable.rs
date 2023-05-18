@@ -74,12 +74,12 @@ impl Display for VarErrors {
 ///
 /// Use the method build on this struct to get the data within it.
 /// This is because the methods make sure the data you are receiving is valid data.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Variable {
-    var_name: String,
-    var_type: VarTypes,
-    var_line: usize,
-    is_constant: bool,
+    pub var_name: String,
+    pub var_type: VarTypes,
+    pub var_line: usize,
+    pub is_constant: bool,
 }
 
 impl Default for Variable {
@@ -99,9 +99,10 @@ pub trait VarData {
     fn set_name(&mut self, name: String, line: Option<usize>) -> Result<(), VarErrors>;
     /// Gets the name of a variable, returns None if the variable name is of length 0
     fn get_name(&self) -> Option<&str>;
-    // Sets the type of a variable, this type gets checked,  If the variable already has type this would also cause a
-    // error to be returned;
+    /// Sets the type of a variable, this type gets checked,  If the variable already has type this would also cause a
+    /// error to be returned;
     fn set_type(&mut self, value: VarTypes, line: Option<usize>) -> Result<(), VarErrors>;
+    /// Set the expected type of a variable using a Marker type
     // Change the type of variable to a constant variable
     fn set_to_constant(&mut self);
     // Change the type of variable to a normal (not constant) variable

@@ -32,6 +32,7 @@ impl From<&str> for Tokens {
             "<=" => Tokens::Op(Operator::LessEq),
             "&&" => Tokens::Op(Operator::And),
             // All Keywords
+            "return" => Tokens::Kw(Keywords::Return),
             "let" => Tokens::Kw(Keywords::Let),
             "fn" => Tokens::Kw(Keywords::Fn),
             "for" => Tokens::Kw(Keywords::For),
@@ -43,6 +44,7 @@ impl From<&str> for Tokens {
             "string" => Tokens::Kw(Keywords::String),
             "char" => Tokens::Kw(Keywords::Char),
             "array" => Tokens::Kw(Keywords::Array),
+            "void" => Tokens::Kw(Keywords::Void),
             "i32" => Tokens::Kw(Keywords::I32),
             "f32" => Tokens::Kw(Keywords::F32),
             "u8" => Tokens::Kw(Keywords::U8),
