@@ -1,4 +1,4 @@
-use crate::{ast::AstNodeType, zon_parser::lexer::Tokens};
+use crate::zon_parser::lexer::Tokens;
 
 pub enum ParseErrors {
     /// If a previous token was expected but no token was received
@@ -28,9 +28,10 @@ pub enum ParseErrors {
     ///
     /// .0 = line
     /// .1 = The node type that didn't get a close
-    NoEnd(usize, AstNodeType),
+    NoEnd(usize),
 }
 
+// Todo: Most of these errors are just place holder now and will get changed to be more helpful
 impl ToString for ParseErrors {
     fn to_string(&self) -> String {
         match self {
@@ -57,8 +58,8 @@ impl ToString for ParseErrors {
                     "got a invalid token on line {line}, {invalid_token:#?} is not allowed in this context."
                 )
             }
-            ParseErrors::NoEnd(line, no_end_token) => {
-                format!("Expected a end to {no_end_token:#?} on line {line}, but never got one")
+            ParseErrors::NoEnd(line) => {
+                format!("Expected a end to  on line {line}, but never got one")
             }
         }
     }

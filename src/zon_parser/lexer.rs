@@ -143,6 +143,26 @@ impl Display for TokenErrorMessages {
     }
 }
 
+impl ToString for Tokens {
+    /// Converts the following types to their string value:
+    ///
+    /// Tokens::String => "string"
+    /// Tokens::Number => "i32"
+    /// Tokens::FloatNumber => "f32"
+    /// Tokens::Char => "char"
+    /// Tokens::Identifier => "identifier"
+    fn to_string(&self) -> String {
+        match self {
+            Tokens::String => "string".into(),
+            Tokens::Number => "i32".into(),
+            Tokens::FloatNumber => "f32".into(),
+            Tokens::Char => "char".into(),
+            Tokens::Identifier => "identifier".into(),
+            _ => "".into()
+        }
+    }
+}
+
 impl std::error::Error for TokenErrorMessages {
     fn description(&self) -> &str {
         match &self {

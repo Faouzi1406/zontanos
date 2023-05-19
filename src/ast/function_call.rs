@@ -1,7 +1,8 @@
-use super::{function::Function, types::VarTypes};
+use super::types::VarTypes;
 
+#[derive(Debug, PartialEq)]
 pub struct FunctionCall {
-    call_to: Function,
-    args: Vec<VarTypes>,
-    line: u32,
+    pub call_to: String,
+    pub args: Vec<VarTypes>,
+    pub line: usize,
 }

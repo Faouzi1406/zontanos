@@ -20,6 +20,7 @@ fn main() {
         let other: string = \"wow\"
         let other: array:char = ['a''b''c']
         let some: array:char =  [ this ]  
+        let some: string = function(\"this is pretty cool!\", 10.0, other([120 100 10]))
         }
 
         fn main(string one, i32 other) f32 {

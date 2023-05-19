@@ -15,6 +15,7 @@ pub mod variable;
 pub enum AstNodeType {
     Variable(variable::Variable),
     Function(function::Function),
+    FunctionCall(function_call::FunctionCall),
     Block(block::Block),
     Program,
 }

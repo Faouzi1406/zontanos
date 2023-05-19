@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::zon_parser::lexer::Keywords;
 
-use super::variable::VarErrors;
+use super::{function_call::FunctionCall, variable::VarErrors};
 
 #[derive(PartialEq, Debug)]
 pub enum VarTypes {
@@ -10,6 +10,7 @@ pub enum VarTypes {
         array: Vec<VarTypes>,
         array_type: MarkerTypes,
     },
+    FunctionCall(FunctionCall, MarkerTypes),
     I32(i32),
     F32(f32),
     U8(u8),

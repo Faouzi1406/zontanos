@@ -9,7 +9,8 @@ use super::{
 };
 use crate::ast::{
     function::{Function, Paramater},
-    types::MarkerTypes,
+    function_call::FunctionCall,
+    types::{MarkerTypes, VarTypes},
 };
 
 pub trait FunctionParser {
@@ -39,6 +40,15 @@ pub trait FunctionParser {
     ///     return 1;
     /// }
     fn parse_function(&mut self) -> Result<Function, String>;
+}
+
+pub trait FunctionCalls {
+    fn parse_arguments(&mut self) -> Result<Vec<VarTypes>, String>;
+    fn parse_function_call(
+        &mut self,
+        identifier: String,
+        line: usize,
+    ) -> Result<FunctionCall, String>;
 }
 
 impl FunctionParser for Parser {
@@ -142,5 +152,94 @@ impl FunctionParser for Parser {
             params,
             line: function_name.line,
         });
+    }
+}
+
+impl FunctionCalls for Parser {
+    fn parse_arguments(&mut self) -> Result<Vec<VarTypes>, String> {
+        let mut arguments = Vec::new();
+        let mut line: usize = 0;
+
+        let mut current_value = VarTypes::None;
+        while let Some(token) = self.next() {
+            line = token.line;
+            match token.token_type {
+                Tokens::String | Tokens::Number | Tokens::FloatNumber | Tokens::Char => {
+                    let str_type = token.token_type.to_string();
+                    if current_value != VarTypes::None {
+                        return Err(format!("expected a comma between arguments on line {line}"));
+                    }
+                    let Ok(convert) = VarTypes::from_str(&token.value, &str_type, line) else {
+                        return Err(format!("invalid argument value on line {line}"));
+                    };
+                    current_value = convert;
+                }
+                Tokens::Identifier => {
+                    if current_value != VarTypes::None {
+                        return Err(format!("expected a comma between arguments on line {line}"));
+                    }
+                    if let Some(func_call) = self.next() {
+                        if func_call.token_type == Tokens::OpenBrace {
+                            let function_call = FunctionCall {
+                                args: self.parse_arguments()?,
+                                call_to: token.value,
+                                line,
+                            };
+                            current_value =
+                                VarTypes::FunctionCall(function_call, MarkerTypes::None);
+                            continue;
+                        } else {
+                            self.advance_back(1);
+                        }
+                    }
+                    current_value = VarTypes::Identifier(token.value, MarkerTypes::None);
+                }
+                Tokens::OpenBracket => {
+                    if current_value != VarTypes::None {
+                        return Err(format!("expected a comma between arguments on line {line}"));
+                    }
+                    self.advance_back(1);
+                    let arr = self.parse_array(MarkerTypes::None)?;
+                    current_value = arr;
+                }
+                Tokens::Comma => {
+                    arguments.push(current_value);
+                    current_value = VarTypes::None;
+                }
+                Tokens::CloseBrace => {
+                    if current_value != VarTypes::None {
+                        arguments.push(current_value);
+                    }
+                    return Ok(arguments);
+                }
+                _ => {
+                    return Err(ParseErrors::InvalidToken(token.line, token.token_type).to_string())
+                }
+            }
+        }
+        Err(ParseErrors::NoEnd(line).to_string())
+    }
+
+    fn parse_function_call(
+        &mut self,
+        identifier: String,
+        line: usize,
+    ) -> Result<FunctionCall, String> {
+        match self.next() {
+            // Yeah, I'm sorry....
+            // It's for making sure that when we go to parse the function call the first token
+            // isn't a openbrace.
+            Some(open_brace) => {
+                if open_brace.token_type != Tokens::OpenBrace {
+                    self.advance_back(1);
+                }
+            }
+            None => return Err(ParseErrors::ExpectedNext(line).to_string()),
+        }
+        Ok(FunctionCall {
+            call_to: identifier,
+            args: self.parse_arguments()?,
+            line,
+        })
     }
 }
