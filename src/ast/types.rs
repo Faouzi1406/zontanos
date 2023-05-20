@@ -4,7 +4,7 @@ use crate::zon_parser::lexer::Keywords;
 
 use super::{function_call::FunctionCall, variable::VarErrors};
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum VarTypes {
     Array {
         array: Vec<VarTypes>,
@@ -17,6 +17,7 @@ pub enum VarTypes {
     I8(i8),
     Char(char),
     String(String),
+    Bool(bool),
     /// Contains the name and the expected type of a identifier
     Identifier(String, MarkerTypes),
     None,
@@ -176,6 +177,7 @@ impl VarTypes {
                     }
                 }
             }
+            "identifier" => Ok(VarTypes::Identifier(value.to_string(), MarkerTypes::None)),
             _ => Err(VarErrors::NotAType(type_expected.into(), line)),
         }
     }

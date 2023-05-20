@@ -21,6 +21,10 @@ pub enum Tokens {
     Number,
     /// any valid sequence of numbers that is a floating point number
     FloatNumber,
+    /// true
+    BoolTrue,
+    /// false
+    BoolFalse,
     /// :
     Colon,
     /// ;
@@ -158,7 +162,7 @@ impl ToString for Tokens {
             Tokens::FloatNumber => "f32".into(),
             Tokens::Char => "char".into(),
             Tokens::Identifier => "identifier".into(),
-            _ => "".into()
+            _ => "".into(),
         }
     }
 }
@@ -246,13 +250,16 @@ impl Tokenizer {
 }
 
 pub trait Tokenize {
-    /// returns a [`Tokens::Op(Operator::String)`] token
+    /// returns a [`Tokens::String`] token
     /// Expects '"' to be the previous character
     fn token_str(&mut self, line: usize) -> Token;
     fn token_comment(&mut self, line: usize) -> Token;
-    /// returns a [`Tokens::Op(Operator::Char)`] token
+    /// returns a [`Tokens::Char`] token
     /// Expects ''' to be the previous character
     fn token_char(&mut self, line: usize) -> Token;
+    /// returns a [`Tokens::Op(Operator::Or || Operator::OrOr)`] token
+    /// Expects ''' to be the previous character
+    fn token_or(&mut self, line: usize) -> Token;
     /// returns a [`Tokens::Identifier`] || [`Tokens::Kw`]  token
     /// Expects the previous character to be of any letter type
     fn token_identifier(&mut self, line: usize) -> Token;
@@ -356,6 +363,44 @@ impl Tokenize for Tokenizer {
         Token::new(line, str.as_str().into(), &str)
     }
 
+    fn token_num(&mut self, line: usize) -> Token {
+        if let Some(prev) = self.prev_char {
+            assert!(prev.is_numeric());
+            #[allow(unused_variables)]
+            let mut token_type = Tokens::Number;
+            let mut nums = String::from(prev);
+            while let Some(char) = self.next() {
+                match char {
+                    '0'..='9' => nums.push(char),
+                    // if we find a dot anywhere inbetween the numbers we consider it to be a
+                    // floating point number
+                    #[allow(unused_assignments)]
+                    '.' => {
+                        token_type = Tokens::FloatNumber;
+                        nums.push(char);
+                    }
+                    // We allow users to have underscores in their numbers for readability
+                    '_' => continue,
+                    _ => {
+                        // We consider this to be the end and return the number token, we also make
+                        // sure to advance back so that the char doesn't get consumed and can be
+                        // used by the lexer
+                        self.advance_back(1);
+                        return Token::new(line, token_type, &nums);
+                    }
+                }
+            }
+        };
+
+        Token::new(
+            line,
+            Tokens::InvalidToken(TokenErrorMessages::TokenInvalid(
+                "Got a call to token_less but there was no previous character present.".to_string(),
+            )),
+            "no prev token",
+        )
+    }
+
     fn token_eq(&mut self, line: usize) -> Token {
         if let Some(prev) = self.prev_char {
             assert_eq!(prev, '=');
@@ -398,44 +443,6 @@ impl Tokenize for Tokenizer {
                     }
                 }
                 None => return Token::new(line, "<".into(), "<"),
-            }
-        };
-
-        Token::new(
-            line,
-            Tokens::InvalidToken(TokenErrorMessages::TokenInvalid(
-                "Got a call to token_less but there was no previous character present.".to_string(),
-            )),
-            "no prev token",
-        )
-    }
-
-    fn token_num(&mut self, line: usize) -> Token {
-        if let Some(prev) = self.prev_char {
-            assert!(prev.is_numeric());
-            #[allow(unused_variables)]
-            let mut token_type = Tokens::Number;
-            let mut nums = String::from(prev);
-            while let Some(char) = self.next() {
-                match char {
-                    '0'..='9' => nums.push(char),
-                    // if we find a dot anywhere inbetween the numbers we consider it to be a
-                    // floating point number
-                    #[allow(unused_assignments)]
-                    '.' => {
-                        token_type = Tokens::FloatNumber;
-                        nums.push(char);
-                    }
-                    // We allow users to have underscores in their numbers for readability
-                    '_' => continue,
-                    _ => {
-                        // We consider this to be the end and return the number token, we also make
-                        // sure to advance back so that the char doesn't get consumed and can be
-                        // used by the lexer
-                        self.advance_back(1);
-                        return Token::new(line, token_type, &nums);
-                    }
-                }
             }
         };
 
@@ -528,6 +535,22 @@ impl Tokenize for Tokenizer {
             "no prev token",
         )
     }
+
+    fn token_or(&mut self, line: usize) -> Token {
+        let Some(next) = self.next() else {
+            self.advance_back(1);
+            return Token::new(line, "|".into(), "|");
+        };
+        match next {
+            '|' => {
+                Token::new(line, "||".into(), "||")
+            }
+            _ => {
+                self.advance_back(1);
+                Token::new(line, "|".into(), "|")
+            }
+        }
+    }
 }
 
 pub trait Lexer {
@@ -545,6 +568,8 @@ pub trait Lexer {
                 '<' => tokens.push(tokenizer.token_less(line)),
                 '>' => tokens.push(tokenizer.token_more(line)),
                 '\'' => tokens.push(tokenizer.token_char(line)),
+                '|' => tokens.push(tokenizer.token_or(line)),
+                '&' => tokens.push(tokenizer.token_and(line)),
                 '0'..='9' => tokens.push(tokenizer.token_num(line)),
                 'a'..='z' | 'A'..='Z' => tokens.push(tokenizer.token_identifier(line)),
                 '/' => tokens.push(tokenizer.token_comment(line)),

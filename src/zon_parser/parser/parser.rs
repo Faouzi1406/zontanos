@@ -4,16 +4,17 @@
 //! It will be responsible for turning the tokens into the Ast.
 //! It should detect whenever there is a invalid set of tokens.
 
-use std::{str::FromStr, unimplemented};
+use std::{println, str::FromStr, unimplemented};
 
 use crate::{
     ast::{
         block::Block,
         types::{MarkerTypes, VarTypes},
         variable::{VarData, Variable},
-        Ast, AstNodeType,
+        Ast, Expr,
     },
     zon_parser::{
+        if_else_parser::IfElseParser,
         lexer::Operator,
         parse_functions::{FunctionCalls, FunctionParser},
         parser::parse_errors::ParseErrors,
@@ -243,7 +244,6 @@ impl ParseTokens for Parser {
         }
 
         while let Some(token) = self.next() {
-            // End of the array
             if token.token_type == Tokens::CloseBracket {
                 break;
             };
@@ -329,15 +329,19 @@ impl ParseTokens for Parser {
             match token.token_type {
                 Tokens::Kw(Keywords::Let) => {
                     let var = self.parse_var_assignment()?;
-                    block.insert_node(AstNodeType::Variable(var));
+                    block.insert_node(Expr::Variable(var));
+                }
+                Tokens::Identifier => {
+                    let function_call = self.parse_function_call(token.value, token.line)?;
+                    block.insert_node(Expr::FunctionCall(function_call))
                 }
                 Tokens::Kw(Keywords::Fn) => {
                     let func = self.parse_function()?;
-                    block.insert_node(AstNodeType::Function(func));
+                    block.insert_node(Expr::Function(func));
                 }
                 Tokens::OpenCurlyBracket => {
                     self.advance_back(1);
-                    block.insert_node(AstNodeType::Block(self.parse_block()?));
+                    block.insert_node(Expr::Block(self.parse_block()?));
                 }
                 Tokens::CloseCurlyBracket => {
                     return Ok(block);
@@ -373,7 +377,7 @@ impl Parse for Parser {
                 Tokens::Kw(Keywords::Let) => {
                     let assign = self.parse_var_assignment();
                     if let Ok(assign) = assign {
-                        ast.insert_node(AstNodeType::Variable(assign));
+                        ast.insert_node(Expr::Variable(assign));
                         continue;
                     }
                     errors.push(assign.err().unwrap())
@@ -381,11 +385,20 @@ impl Parse for Parser {
                 Tokens::Kw(Keywords::Fn) => {
                     let function = self.parse_function();
                     if let Ok(parsed_function) = function {
-                        ast.insert_node(AstNodeType::Function(parsed_function));
+                        ast.insert_node(Expr::Function(parsed_function));
                     } else {
                         errors.push(function.err().unwrap());
                         return Err(errors);
                     }
+                }
+                Tokens::Kw(Keywords::If) => {
+                    self.advance_back(1);
+                    let if_statement = self.parse_if(token.line);
+                    let Ok(if_statement) = if_statement else {
+                        errors.push(if_statement.err().unwrap());
+                        return Err(errors);
+                    };
+                    ast.insert_node(if_statement);
                 }
                 Tokens::OpenCurlyBracket => {
                     self.advance_back(1);
@@ -394,11 +407,10 @@ impl Parse for Parser {
                         errors.push(parse_block.err().unwrap());
                         return Err(errors);
                     };
-                    ast.insert_node(AstNodeType::Block(parsed_block));
+                    ast.insert_node(Expr::Block(parsed_block));
                 }
-                //Tokens:: Parse tokens
                 _cant_continue => {
-                    println!("found token: {_cant_continue:#?}");
+                    println!("found invalid token: {_cant_continue:#?}");
                     return Err(errors);
                 }
             }

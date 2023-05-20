@@ -24,7 +24,7 @@ fn main() {
         }
 
         fn main(string one, i32 other) f32 {
-        fn other(string other) f32 {
+        fn other(string other) i8 {
         let wow:i32 = 1
         }
             {

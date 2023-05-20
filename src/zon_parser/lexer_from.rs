@@ -21,6 +21,8 @@ impl From<&str> for Tokens {
             "*" => Tokens::Times,
             "," => Tokens::Comma,
             "\t" => Tokens::Tab,
+            "true" => Tokens::BoolTrue,
+            "false" => Tokens::BoolFalse,
             // All operator values
             "=" => Tokens::Op(Operator::Eq),
             "&" => Tokens::Op(Operator::And),
@@ -30,7 +32,8 @@ impl From<&str> for Tokens {
             "!=" => Tokens::Op(Operator::Nq),
             ">=" => Tokens::Op(Operator::MoreEq),
             "<=" => Tokens::Op(Operator::LessEq),
-            "&&" => Tokens::Op(Operator::And),
+            "&&" => Tokens::Op(Operator::AndAnd),
+            "||" => Tokens::Op(Operator::OrOr),
             // All Keywords
             "return" => Tokens::Kw(Keywords::Return),
             "let" => Tokens::Kw(Keywords::Let),

@@ -10,43 +10,45 @@ pub mod function;
 pub mod function_call;
 pub mod types;
 pub mod variable;
+pub mod logic;
 
 #[derive(Debug, PartialEq)]
-pub enum AstNodeType {
+pub enum Expr {
     Variable(variable::Variable),
     Function(function::Function),
     FunctionCall(function_call::FunctionCall),
     Block(block::Block),
+    Logic(logic::Statement),
     Program,
 }
 
-impl AsMut<AstNodeType> for AstNodeType {
-    fn as_mut(&mut self) -> &mut AstNodeType {
+impl AsMut<Expr> for Expr {
+    fn as_mut(&mut self) -> &mut Expr {
         self
     }
 }
 
 #[derive(Debug)]
 pub struct Ast {
-    pub ast_type: AstNodeType,
-    pub body: Vec<AstNodeType>,
+    pub ast_type: Expr,
+    pub body: Vec<Expr>,
 }
 
 impl Ast {
     pub fn new() -> Ast {
         Ast {
-            ast_type: AstNodeType::Program,
+            ast_type: Expr::Program,
             body: Vec::new(),
         }
     }
 
-    pub fn insert_node(&mut self, ast_type: AstNodeType) {
+    pub fn insert_node(&mut self, ast_type: Expr) {
         self.body.push(ast_type);
     }
 
     pub fn find_function(&self, function_name: String) -> Option<&Function> {
         for node in self.body.iter() {
-            if let AstNodeType::Function(func) = node {
+            if let Expr::Function(func) = node {
                 if func.name == function_name {
                     return Some(func);
                 }
@@ -60,8 +62,8 @@ impl Ast {
     }
 }
 
-impl From<AstNodeType> for Ast {
-    fn from(ast_type: AstNodeType) -> Self {
+impl From<Expr> for Ast {
+    fn from(ast_type: Expr) -> Self {
         Self {
             ast_type,
             body: Vec::new(),
