@@ -1,6 +1,6 @@
 //! This contains all the tests for the parser.
 
-use std::{assert_eq, println};
+use std::assert_eq;
 
 use crate::{
     ast::{
@@ -12,7 +12,7 @@ use crate::{
     panic_test,
     zon_parser::{
         lexer::{Lexer, Operator, Tokenizer},
-        parser::parser::{Parse, Parser},
+        parser::parser::Parser,
     },
 };
 
@@ -97,8 +97,8 @@ pub fn test_block() {
 
 #[test]
 fn parsing_function() {
-    let statement = "fn print_name() i32 { print(\"name\") }";
-    let mut tokenize = Tokenizer::new(statement);
+    let function = "fn print_name() i32 { print(\"name\") }";
+    let mut tokenize = Tokenizer::new(function);
     let tokenize = Tokenizer::lex(&mut tokenize);
     let mut parse = Parser::new(tokenize);
     let Ok(parse) = parse.parse() else {
@@ -124,8 +124,9 @@ fn parsing_function() {
 
 #[test]
 fn parsing_function_calls() {
-    let statement = "{ print(\"name\") }";
-    let mut tokenize = Tokenizer::new(statement);
+    let function_call = "{ print(\"name\") }";
+
+    let mut tokenize = Tokenizer::new(function_call);
     let tokenize = Tokenizer::lex(&mut tokenize);
     let mut parse = Parser::new(tokenize);
     let Ok(parse) = parse.parse() else {

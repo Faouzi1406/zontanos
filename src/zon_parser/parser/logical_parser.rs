@@ -3,6 +3,7 @@ use std::{io::ErrorKind, todo};
 
 use crate::{
     ast::{
+        block::Block,
         logic::{Case, LogicalStatements, Statement},
         types::VarTypes,
         Expr,
@@ -13,21 +14,16 @@ use crate::{
     },
 };
 
-use super::{
-    lexer::{Operator, Token},
-    parser::parser::Parser,
+use crate::{
+    zon_parser::lexer::{Operator, Token},
+    zon_parser::parser::parser::Parser,
 };
 
 pub trait IfElseParser {
     fn parse_if(&mut self, line: usize) -> Result<Expr, String>;
-    fn parse_else(&mut self) -> Expr;
+    fn parse_else(&mut self) -> Option<Result<Block, String>>;
     fn parse_statements(&mut self, line: usize) -> Result<Vec<LogicalStatements>, String>;
     fn parse_case(&mut self, line: usize) -> Result<Case, String>;
-}
-
-trait Helpers {
-    fn parse_value(token: Token) -> Result<VarTypes, String>;
-    fn parse_operator(token: Token) -> Result<Operator, String>;
 }
 
 impl IfElseParser for Parser {
@@ -35,25 +31,44 @@ impl IfElseParser for Parser {
         let Some(if_statement) = self.next() else {
             return Err(ParseErrors::ExpectedNext(line).to_string());
         };
+        Parser::parse_expect(if_statement.token_type, Tokens::Kw(Keywords::If))?;
 
-        if if_statement.token_type != Tokens::Kw(Keywords::If) {
-            return Err(
-                ParseErrors::WrongToken(Tokens::Kw(Keywords::If), if_statement.token_type)
-                    .to_string(),
-            );
-        }
         let statements = self.parse_statements(line)?;
         let parse_block = self.parse_block()?;
-        let if_statement = Statement {
-            if_true: parse_block,
-            if_false: None,
+
+        let mut if_statement = Statement {
+            if_block: parse_block,
+            else_block: None,
             statements,
         };
+
+        if let Some(else_block) = self.parse_else() {
+            if_statement.else_block = Some(else_block?);
+        }
+
         Ok(Expr::Logic(if_statement))
     }
-    fn parse_else(&mut self) -> Expr {
-        todo!()
+
+    fn parse_else(&mut self) -> Option<Result<Block, String>> {
+        let is_else = self.next()?;
+
+        if let Tokens::Kw(Keywords::Else) = is_else.token_type {
+            if let Ok(get_else_block) = self.parse_block() {
+                return Some(Ok(get_else_block));
+            } else {
+                let no_block_after_else = format!(
+                    "Got a else statement on line {} without a block '{}...{}' folowing it.",
+                    is_else.line, '{', '}'
+                );
+
+                return Some(Err(no_block_after_else));
+            };
+        };
+
+        self.advance_back(1);
+        None
     }
+
     fn parse_statements(&mut self, line: usize) -> Result<Vec<LogicalStatements>, String> {
         let Some(open_brace) = self.next() else {
             return Err(ParseErrors::ExpectedNext(line).to_string());
@@ -137,32 +152,6 @@ impl IfElseParser for Parser {
             invalid_token => {
                 return Err(ParseErrors::InvalidToken(line, Tokens::Op(invalid_token)).to_string())
             }
-        }
-    }
-}
-
-impl Helpers for Parser {
-    fn parse_value(token: Token) -> Result<VarTypes, String> {
-        match token.token_type {
-            Tokens::String
-            | Tokens::Number
-            | Tokens::FloatNumber
-            | Tokens::Char
-            | Tokens::Identifier => {
-                let Ok(var_type) = VarTypes::from_str(&token.value, &token.token_type.to_string(), token.line) else {
-                    return Err(ParseErrors::ExpectedType(token.line).to_string());
-                };
-                Ok(var_type)
-            }
-            invalid_token => {
-                return Err(ParseErrors::InvalidToken(token.line, invalid_token).to_string())
-            }
-        }
-    }
-    fn parse_operator(token: Token) -> Result<Operator, String> {
-        match token.token_type {
-            Tokens::Op(op) => Ok(op),
-            invalid_token => Err(ParseErrors::InvalidToken(token.line, invalid_token).to_string()),
         }
     }
 }

@@ -1,8 +1,7 @@
 use std::format;
 
-use super::{
-    lexer::{Keywords, Tokens},
-    parser::{
+use crate::{
+    zon_parser::lexer::{Keywords, Tokens}, zon_parser::parser::{
         parse_errors::ParseErrors,
         parser::{ParseTokens, Parser},
     },

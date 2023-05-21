@@ -4,8 +4,7 @@
 //! It will be responsible for turning the tokens into the Ast.
 //! It should detect whenever there is a invalid set of tokens.
 
-use std::{println, str::FromStr, unimplemented};
-
+use crate::zon_parser::parser::parse_functions::{FunctionCalls, FunctionParser};
 use crate::{
     ast::{
         block::Block,
@@ -13,15 +12,14 @@ use crate::{
         variable::{VarData, Variable},
         Ast, Expr,
     },
-    zon_parser::{
-        if_else_parser::IfElseParser,
-        lexer::Operator,
-        parse_functions::{FunctionCalls, FunctionParser},
-        parser::parse_errors::ParseErrors,
-    },
+    zon_parser::{lexer::Operator, parser::parse_errors::ParseErrors},
 };
+use std::println;
+use std::str::FromStr;
 
 use crate::zon_parser::lexer::{Keywords, Token, Tokens};
+
+use super::logical_parser::IfElseParser;
 
 #[derive(Debug)]
 pub struct Parser {
@@ -54,13 +52,6 @@ impl Parser {
     }
 }
 
-pub trait Parse {
-    fn new(tokens: Vec<Token>) -> Self;
-    fn parse(&mut self) -> Result<Ast, Vec<String>>;
-    fn tokens_until_mut(&mut self, tokens: Tokens) -> Option<Vec<Token>>;
-    fn tokens_until(&self, until_token: Tokens) -> Option<Vec<Token>>;
-}
-
 pub trait ParseTokens {
     fn parse_var_assignment(&mut self) -> Result<Variable, String>;
     fn parse_type_assignment(&mut self, line: usize) -> Result<VarTypes, String>;
@@ -74,77 +65,71 @@ impl ParseTokens for Parser {
             return Err(ParseErrors::NoPrevToken.to_string());
         };
         let prev_token = prev_token.clone();
-        if prev_token.token_type != Tokens::Kw(Keywords::Let) {
-            return Err(
-                ParseErrors::WrongToken(Tokens::Kw(Keywords::Let), prev_token.token_type)
-                    .to_string(),
-            );
-        }
+        Parser::parse_expect(prev_token.token_type, Tokens::Kw(Keywords::Let))?;
 
         let mut variable = Variable::default();
         let Some(var_name) = self.next() else {
             return Err(ParseErrors::ExpectedNext(prev_token.line).to_string());
         };
-        if var_name.token_type != Tokens::Identifier {
-            return Err(
-                ParseErrors::WrongToken(Tokens::Identifier, var_name.token_type).to_string(),
-            );
-        }
+        Parser::parse_expect(var_name.token_type, Tokens::Identifier)?;
 
         let _ = variable.set_name(var_name.value, Some(var_name.line));
         variable.var_line = prev_token.line;
 
-        let Some(equal_sign) = self.next() else {
+        let Some(variable_assignment) = self.next() else {
             return Err(ParseErrors::ExpectedNext(var_name.line).to_string());
         };
-
-        match equal_sign.token_type {
-            // Todo: Type inference
+        match variable_assignment.token_type {
             Tokens::Op(Operator::Eq) => {
-                todo!("Type inference");
+                let type_inference_error = format!(
+                    "Found a assignment on line {} but didn't get a type, currently type inference isn't supported so pleass consider adding a type.", 
+                    variable_assignment.line
+                );
+                return Err(type_inference_error);
             }
-            // This means the token after colon is the Type expected
-            //
-            // Example
-            //
-            // let value: -> string <- = "wow"
             Tokens::Colon => {
-                let value = self.parse_type_assignment(equal_sign.line)?;
-                let _ = variable.set_type(value, Some(equal_sign.line));
+                let value = self.parse_type_assignment(variable_assignment.line)?;
+                let _ = variable.set_type(value, Some(variable_assignment.line));
             }
-            token => {
-                return Err(ParseErrors::WrongToken(Tokens::Op(Operator::Eq), token).to_string())
-            }
+            token => return Err(ParseErrors::WrongToken(Tokens::Colon, token).to_string()),
         }
 
         return Ok(variable);
     }
 
     fn parse_type_assignment(&mut self, line: usize) -> Result<VarTypes, String> {
+        // The token after colon would be the type
         let Some(var_type) = self.next() else {
             return Err(ParseErrors::ExpectedNext(line).to_string());
         };
 
+        // The next token either being the assign or the generic value
         let Some(assign) = self.next() else {
             return Err(ParseErrors::ExpectedNext(line).to_string());
         };
+
         match assign.token_type {
-            // Equals we expect it to be a value assignment, so we continue
             Tokens::Op(Operator::Eq) => {}
-            // We would consider this to be and array of which the value after the colon is a
-            // type
+            // If it is a colon it specifies a type that contains other types, currently that would
+            // only be and Array.
+            //
+            // This will probably change as generics get introduced in to the language.
             Tokens::Colon => {
                 let Some(arr_type) = self.next() else {
                     return Err(ParseErrors::ExpectedNext(line).to_string());
                 };
-                let Some(_assign) = self.next() else {
+
+                let Some(expect_assign) = self.next() else {
                     return Err(ParseErrors::ExpectedNext(line).to_string());
                 };
-                return Ok(self.parse_array(MarkerTypes::from_str(&arr_type.value)?)?);
+                Parser::parse_expect(expect_assign.token_type, Tokens::Op(Operator::Eq))?;
+
+                let type_array = MarkerTypes::from_str(&arr_type.value)?;
+                return Ok(self.parse_array(type_array)?);
             }
-            // Any other token type would be considered as a wrong token
-            token_type => {
-                return Err(ParseErrors::WrongToken(Tokens::CloseBrace, token_type).to_string())
+            _ => {
+                let no_given_type = format!("Found a variable with a colon one line {line} but the value after the colon was not of a type");
+                return Err(no_given_type);
             }
         }
 
@@ -153,20 +138,8 @@ impl ParseTokens for Parser {
         };
         match value.token_type {
             Tokens::Number => match var_type.token_type {
-                Tokens::Kw(Keywords::I32) => {
-                    let Ok(value_type) = VarTypes::from_str(&value.value, "i32", line) else {
-                        return Err(format!("Expected the value to be the same type as the variable but it was not on line {line}"));
-                    };
-                    return Ok(value_type);
-                }
-                Tokens::Kw(Keywords::U8) => {
-                    let Ok(value_type) = VarTypes::from_str(&value.value, "u8", line) else {
-                        return Err(format!("Expected the value to be the same type as the variable but it was not on line {line}"));
-                    };
-                    return Ok(value_type);
-                }
-                Tokens::Kw(Keywords::I8) => {
-                    let Ok(value_type) = VarTypes::from_str(&value.value, "u8", line) else {
+                Tokens::Kw(keyword) => {
+                    let Ok(value_type) = VarTypes::from_str(&value.value, &keyword.to_string(), line) else {
                         return Err(format!("Expected the value to be the same type as the variable but it was not on line {line}"));
                     };
                     return Ok(value_type);
@@ -174,27 +147,21 @@ impl ParseTokens for Parser {
                 _ => return Err(ParseErrors::ExpectedType(line).to_string()),
             },
             Tokens::FloatNumber => {
-                if var_type.token_type != Tokens::Kw(Keywords::F32) {
-                    return Err(ParseErrors::ExpectedType(line).to_string());
-                }
+                Parser::parse_expect(var_type.token_type, Tokens::Kw(Keywords::F32))?;
                 let Ok(value_type) = VarTypes::from_str(&value.value, "f32", line) else {
                     return Err(format!("Expected the value to be the same type as the variable but it was not on line {line}"));
                 };
                 return Ok(value_type);
             }
             Tokens::String => {
-                if var_type.token_type != Tokens::Kw(Keywords::String) {
-                    return Err(ParseErrors::ExpectedType(line).to_string());
-                }
+                Parser::parse_expect(var_type.token_type, Tokens::Kw(Keywords::String))?;
                 let Ok(value_type) = VarTypes::from_str(&value.value, "string", line) else {
                     return Err(format!("Expected the value to be the same type as the variable but it was not on line {line}"));
                 };
                 return Ok(value_type);
             }
             Tokens::Char => {
-                if var_type.token_type != Tokens::Kw(Keywords::Char) {
-                    return Err(ParseErrors::ExpectedType(line).to_string());
-                }
+                Parser::parse_expect(var_type.token_type, Tokens::Kw(Keywords::Char))?;
                 let Ok(value_type) = VarTypes::from_str(&value.value, "char", line) else {
                     return Err(format!("Expected the value to be the same type as the variable but it was not on line {line}"));
                 };
@@ -205,21 +172,19 @@ impl ParseTokens for Parser {
                     return Err(ParseErrors::ExpectedNext(line).to_string());
                 };
 
-                match is_call.token_type {
-                    Tokens::OpenBrace => {
-                        return Ok(VarTypes::FunctionCall(
-                            self.parse_function_call(value.value, line)?,
-                            MarkerTypes::from_str(&var_type.value)?,
-                        ));
-                    }
-                    _ => {
-                        self.advance_back(1);
-                        return Ok(VarTypes::Identifier(
-                            value.value,
-                            MarkerTypes::from_str(&var_type.value)?,
-                        ));
-                    }
+                // Consider function call after assignment;
+                if let Tokens::OpenBrace = is_call.token_type {
+                    return Ok(VarTypes::FunctionCall(
+                        self.parse_function_call(value.value, line)?,
+                        MarkerTypes::from_str(&var_type.value)?,
+                    ));
                 }
+
+                self.advance_back(1);
+                return Ok(VarTypes::Identifier(
+                    value.value,
+                    MarkerTypes::from_str(&var_type.value)?,
+                ));
             }
             _ => return Err(ParseErrors::ExpectedType(line).to_string()),
         }
@@ -232,16 +197,10 @@ impl ParseTokens for Parser {
         };
         let prev_token = prev_token.clone();
 
-        let Some(_expect_open_bracket) = self.next() else {
+        let Some(expect_open_bracket) = self.next() else {
             return Err(ParseErrors::ExpectedNext(prev_token.line).to_string());
         };
-        if _expect_open_bracket.token_type != Tokens::OpenBracket {
-            return Err(ParseErrors::WrongToken(
-                Tokens::OpenBracket,
-                _expect_open_bracket.token_type,
-            )
-            .to_string());
-        }
+        Parser::parse_expect(expect_open_bracket.token_type, Tokens::OpenBracket)?;
 
         while let Some(token) = self.next() {
             if token.token_type == Tokens::CloseBracket {
@@ -260,54 +219,32 @@ impl ParseTokens for Parser {
                 _ => return Err(ParseErrors::ExpectedType(prev_token.line).to_string()),
             }
             // We match the expected type against the value of the received token.
-            match array_type {
-                MarkerTypes::U8 => {
-                    let Ok(token) = VarTypes::from_str(&token.value, "u8", prev_token.line) else {
-                        return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
-                    };
-                    array.push(token);
-                }
-                MarkerTypes::I8 => {
-                    let Ok(token) = VarTypes::from_str(&token.value, "i8", prev_token.line) else {
-                        return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
-                    };
-                    array.push(token);
-                }
-                MarkerTypes::I32 => {
-                    let Ok(token) = VarTypes::from_str(&token.value, "i32", prev_token.line) else {
-                        return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
-                    };
-                    array.push(token);
-                }
-                MarkerTypes::F32 => {
-                    let Ok(token) = VarTypes::from_str(&token.value, "f32", prev_token.line) else {
-                        return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
-                    };
-                    array.push(token);
-                }
-                MarkerTypes::Char => {
-                    let Ok(token) = VarTypes::from_str(&token.value, "char", prev_token.line) else {
-                        return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
-                    };
-                    array.push(token);
-                }
-                MarkerTypes::String => {
-                    let Ok(token) = VarTypes::from_str(&token.value, "string", prev_token.line) else {
-                        return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
-                    };
-                    array.push(token);
-                }
+            match &array_type {
                 MarkerTypes::None => {
                     let Ok(token) = VarTypes::from_str(&token.value, "string", prev_token.line) else {
                         return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
                     };
                     array.push(token);
                 }
-                _ => unimplemented!(),
+                _ => {
+                    if array_type.to_string() != token.token_type.to_string() {
+                        return Err(format!(
+                            "Expected array value to be of type {} but it was of {} on line {}",
+                            array_type.to_string(),
+                            token.token_type.to_string(),
+                            token.line
+                        ));
+                    };
+                    let Ok(token) = VarTypes::from_str(&token.value, &array_type.to_string(), prev_token.line) else {
+                        return Err(ParseErrors::ExpectedType(prev_token.line).to_string());
+                    };
+                    array.push(token);
+                }
             }
         }
         return Ok(VarTypes::Array { array, array_type });
     }
+
     fn parse_block(&mut self) -> Result<Block, String> {
         let ast_vec = Vec::new();
 
@@ -354,9 +291,9 @@ impl ParseTokens for Parser {
     }
 }
 
-impl Parse for Parser {
+impl Parser {
     /// Create a new instance of a parser
-    fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Parser {
             tokens,
             current_position: 0,
@@ -366,7 +303,7 @@ impl Parse for Parser {
     /// Parse the tokens into a Ast
     ///
     /// Returns a Ok(Ast) or the Err(Vec<String>) containing all the errors it was able to find
-    fn parse(&mut self) -> Result<Ast, Vec<String>> {
+    pub fn parse(&mut self) -> Result<Ast, Vec<String>> {
         let mut errors = Vec::new();
         let mut ast = Ast::new();
 
@@ -419,31 +356,39 @@ impl Parse for Parser {
         Ok(ast)
     }
 
-    /// Gets all the tokens up until a token; Returns None if the token was not in the array
-    ///
-    /// Does advance the current_position
-    fn tokens_until_mut(&mut self, until_token: Tokens) -> Option<Vec<Token>> {
-        let mut tokens = Vec::new();
-        for token in self.by_ref() {
-            if token.token_type == until_token {
-                return Some(tokens);
+    pub fn parse_value(token: Token) -> Result<VarTypes, String> {
+        match token.token_type {
+            Tokens::String
+            | Tokens::Number
+            | Tokens::FloatNumber
+            | Tokens::Char
+            | Tokens::Identifier => {
+                let Ok(var_type) = VarTypes::from_str(&token.value, &token.token_type.to_string(), token.line) else {
+                    return Err(ParseErrors::ExpectedType(token.line).to_string());
+                };
+                Ok(var_type)
             }
-            tokens.push(token);
+            invalid_token => {
+                return Err(ParseErrors::InvalidToken(token.line, invalid_token).to_string())
+            }
         }
-        None
     }
 
-    /// Gets all the tokens up until a token; Returns None if the token was not in the array    
-    ///
-    /// Does not advance the current position
-    fn tokens_until(&self, until_token: Tokens) -> Option<Vec<Token>> {
-        let mut tokens = Vec::new();
-        for token in self.tokens.iter() {
-            if token.token_type == until_token {
-                return Some(tokens);
-            }
-            tokens.push(token.clone());
+    pub fn parse_operator(token: Token) -> Result<Operator, String> {
+        match token.token_type {
+            Tokens::Op(op) => Ok(op),
+            invalid_token => Err(ParseErrors::InvalidToken(token.line, invalid_token).to_string()),
         }
-        None
+    }
+
+    /// Returns the expected token while parsing if the received token wasn't the expected one it
+    /// returns a error.
+    pub fn parse_expect(token: Tokens, expected: Tokens) -> Result<Tokens, String> {
+        if token == expected {
+            return Ok(token);
+        }
+        return Err(format!(
+            "Expected token was: {expected:#?} but received token was {token:#?} "
+        ));
     }
 }

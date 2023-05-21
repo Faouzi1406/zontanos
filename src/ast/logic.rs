@@ -5,8 +5,8 @@ use super::{block::Block, types::VarTypes};
 #[derive(Debug, PartialEq)]
 pub struct Statement {
     pub statements: Vec<LogicalStatements>,
-    pub if_true: Block,
-    pub if_false: Option<Block>,
+    pub if_block: Block,
+    pub else_block: Option<Block>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

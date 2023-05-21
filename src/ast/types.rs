@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{format, str::FromStr};
 
 use crate::zon_parser::lexer::Keywords;
 
@@ -49,6 +49,23 @@ pub enum MarkerTypes {
     U8,
     /// "i8"
     I8,
+}
+
+impl ToString for MarkerTypes {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Char => "char".into(),
+            Self::None => "None".into(),
+            MarkerTypes::String => "string".into(),
+            MarkerTypes::Void => "void".into(),
+            MarkerTypes::Identifier => "identifier".into(),
+            MarkerTypes::I32 => "i32".into(),
+            MarkerTypes::F32 => "f32".into(),
+            MarkerTypes::U8 => "u8".into(),
+            MarkerTypes::I8 => "i8".into(),
+            MarkerTypes::Array(arr) => format!("array:{}", arr.to_string()),
+        }
+    }
 }
 
 impl From<Keywords> for MarkerTypes {

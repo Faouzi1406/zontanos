@@ -88,3 +88,28 @@ impl From<char> for Tokens {
         }
     }
 }
+
+impl ToString for Keywords {
+    fn to_string(&self) -> String {
+        match self {
+            Keywords::If => "if".into(),
+            Keywords::Else => "else".into(),
+            Keywords::Fn => "fn".into(),
+            Keywords::Let => "let".into(),
+            Keywords::U8 => "u8".into(),
+            Keywords::I8 => "i8".into(),
+            Keywords::I32 => "i32".into(),
+            Keywords::F32 => "f32".into(),
+            Keywords::String => "string".into(),
+            Keywords::Char => "char".into(),
+            Keywords::Array => "array".into(),
+            Keywords::For => "for".into(),
+            Keywords::While => "while".into(),
+            Keywords::Pub => "pub".into(),
+            Keywords::Enum => "enum".into(),
+            Keywords::Struct => "struct".into(),
+            Keywords::Void => "void".into(),
+            Keywords::Return => "return".into(),
+        }
+    }
+}
