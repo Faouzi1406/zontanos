@@ -1,15 +1,16 @@
 use std::format;
 
-use crate::{
-    zon_parser::lexer::{Keywords, Tokens}, zon_parser::parser::{
-        parse_errors::ParseErrors,
-        parser::{ParseTokens, Parser},
-    },
-};
 use crate::ast::{
     function::{Function, Paramater},
     function_call::FunctionCall,
     types::{MarkerTypes, VarTypes},
+};
+use crate::{
+    zon_parser::lexer::{Keywords, Tokens},
+    zon_parser::parser::{
+        parse_errors::ParseErrors,
+        parser::{ParseTokens, Parser},
+    },
 };
 
 pub trait FunctionParser {

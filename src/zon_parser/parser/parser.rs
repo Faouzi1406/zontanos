@@ -168,23 +168,22 @@ impl ParseTokens for Parser {
                 return Ok(value_type);
             }
             Tokens::Identifier => {
-                let Some(is_call) = self.next() else {
-                    return Err(ParseErrors::ExpectedNext(line).to_string());
-                };
-
-                // Consider function call after assignment;
-                if let Tokens::OpenBrace = is_call.token_type {
-                    return Ok(VarTypes::FunctionCall(
-                        self.parse_function_call(value.value, line)?,
-                        MarkerTypes::from_str(&var_type.value)?,
-                    ));
+                let value = self.parse_value(value)?;
+                match value {
+                    VarTypes::FunctionCall(call, _) => {
+                        Ok(VarTypes::FunctionCall(
+                            call,
+                            MarkerTypes::from_str(&var_type.value)?,
+                        ))
+                    }
+                    VarTypes::Identifier(id, _) => {
+                        Ok(VarTypes::Identifier(
+                            id,
+                            MarkerTypes::from_str(&var_type.value)?,
+                        ))
+                    }
+                    _ => return Err("Expected the variable type value to be of identifier or function call but it wasn't".to_string()) 
                 }
-
-                self.advance_back(1);
-                return Ok(VarTypes::Identifier(
-                    value.value,
-                    MarkerTypes::from_str(&var_type.value)?,
-                ));
             }
             _ => return Err(ParseErrors::ExpectedType(line).to_string()),
         }
@@ -213,7 +212,16 @@ impl ParseTokens for Parser {
                 Tokens::Number => {}
                 Tokens::FloatNumber => {}
                 Tokens::Identifier => {
-                    array.push(VarTypes::Identifier(token.value, array_type.clone()));
+                    let value = self.parse_value(token)?;
+                    match value {
+                        VarTypes::FunctionCall(call, _) => {
+                            array.push(VarTypes::FunctionCall(call, array_type.clone()));
+                        }
+                        VarTypes::Identifier(id, _) => {
+                            array.push(VarTypes::Identifier(id, array_type.clone()));
+                        }
+                        _ => return Err("Expected array identifier to be identifier or function call but it wasn't".to_string())
+                    }
                     continue;
                 }
                 _ => return Err(ParseErrors::ExpectedType(prev_token.line).to_string()),
@@ -268,6 +276,11 @@ impl ParseTokens for Parser {
                     let var = self.parse_var_assignment()?;
                     block.insert_node(Expr::Variable(var));
                 }
+                Tokens::Kw(Keywords::If) => {
+                    self.advance_back(1);
+                    let if_statement = self.parse_if(token.line)?;
+                    block.insert_node(if_statement);
+                }
                 Tokens::Identifier => {
                     let function_call = self.parse_function_call(token.value, token.line)?;
                     block.insert_node(Expr::FunctionCall(function_call))
@@ -280,6 +293,7 @@ impl ParseTokens for Parser {
                     self.advance_back(1);
                     block.insert_node(Expr::Block(self.parse_block()?));
                 }
+                Tokens::Kw(Keywords::Return) => {}
                 Tokens::CloseCurlyBracket => {
                     return Ok(block);
                 }
@@ -311,6 +325,7 @@ impl Parser {
             match token.token_type {
                 // Ignore comments
                 Tokens::Comment => continue,
+                Tokens::InvalidToken(_) => continue,
                 Tokens::Kw(Keywords::Let) => {
                     let assign = self.parse_var_assignment();
                     if let Ok(assign) = assign {
@@ -356,13 +371,26 @@ impl Parser {
         Ok(ast)
     }
 
-    pub fn parse_value(token: Token) -> Result<VarTypes, String> {
+    pub fn parse_value(&mut self, token: Token) -> Result<VarTypes, String> {
+        let line = token.line;
         match token.token_type {
-            Tokens::String
-            | Tokens::Number
-            | Tokens::FloatNumber
-            | Tokens::Char
-            | Tokens::Identifier => {
+            Tokens::Identifier => {
+                let Some(is_call) = self.next() else {
+                    return Err(ParseErrors::ExpectedNext(line).to_string());
+                };
+
+                // Consider function call after assignment;
+                if let Tokens::OpenBrace = is_call.token_type {
+                    return Ok(VarTypes::FunctionCall(
+                        self.parse_function_call(token.value, line)?,
+                        MarkerTypes::None,
+                    ));
+                }
+
+                self.advance_back(1);
+                return Ok(VarTypes::Identifier(token.value, MarkerTypes::None));
+            }
+            Tokens::String | Tokens::Number | Tokens::FloatNumber | Tokens::Char => {
                 let Ok(var_type) = VarTypes::from_str(&token.value, &token.token_type.to_string(), token.line) else {
                     return Err(ParseErrors::ExpectedType(token.line).to_string());
                 };

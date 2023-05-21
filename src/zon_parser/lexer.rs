@@ -542,9 +542,7 @@ impl Tokenize for Tokenizer {
             return Token::new(line, "|".into(), "|");
         };
         match next {
-            '|' => {
-                Token::new(line, "||".into(), "||")
-            }
+            '|' => Token::new(line, "||".into(), "||"),
             _ => {
                 self.advance_back(1);
                 Token::new(line, "|".into(), "|")
@@ -573,7 +571,13 @@ pub trait Lexer {
                 '0'..='9' => tokens.push(tokenizer.token_num(line)),
                 'a'..='z' | 'A'..='Z' => tokens.push(tokenizer.token_identifier(line)),
                 '/' => tokens.push(tokenizer.token_comment(line)),
-                token => tokens.push(Token::new(line, token.into(), &token.to_string())),
+                token => {
+                    let token = Token::new(line, token.into(), &token.to_string());
+                    if let Tokens::InvalidToken(_) = token.token_type {
+                        continue;
+                    }
+                    tokens.push(token)
+                }
             };
         }
         tokens

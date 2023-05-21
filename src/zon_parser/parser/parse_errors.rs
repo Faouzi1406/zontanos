@@ -49,9 +49,7 @@ impl ToString for ParseErrors {
             }
             // Todo: Add error handling based on it's type to improve errors
             ParseErrors::ExpectedType(line) => {
-                format!(
-                    "Error on {line}, the parser expected a value but didn't get one"
-                )
+                format!("Error on {line}, the parser expected a value but didn't get one")
             }
             ParseErrors::InvalidToken(line, invalid_token) => {
                 format!(

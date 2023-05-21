@@ -72,12 +72,10 @@ impl From<char> for Tokens {
             ']' => Tokens::CloseBracket,
             '^' => Tokens::Pointer,
             ':' => Tokens::Colon,
-            ';' => Tokens::SemiColon,
             '+' => Tokens::Plus,
             '-' => Tokens::Min,
             '*' => Tokens::Times,
             ',' => Tokens::Comma,
-            '\t' => Tokens::Tab,
             // All operator values
             '=' => Tokens::Op(Operator::Eq),
             '&' => Tokens::Op(Operator::And),

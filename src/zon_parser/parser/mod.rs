@@ -1,4 +1,5 @@
-pub mod parser;
+pub mod logical_parser;
 pub mod parse_errors;
 pub mod parse_functions;
-pub mod logical_parser;
+mod parse_ret;
+pub mod parser;

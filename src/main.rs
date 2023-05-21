@@ -2,6 +2,8 @@ mod all_tests;
 mod ast;
 mod zon_parser;
 
+use std::fs;
+
 use crate::zon_parser::{
     lexer::{Lexer, Tokenizer},
     parser::parser::Parser,
@@ -12,26 +14,10 @@ fn main() {
     // let mut lex = Tokenizer::new(&file);
     // let _ = Tokenizer::lex(&mut lex);
 
-    let string_vars = "
-        {
-            let taal: string = \"some string \" 
-            let b: u8 = 254 
-            let c: char = 'c' 
-            let other:string = \"wow\"
-            let other: array:char = ['a' 'b' 'b']
-            let some: array:char =  [ this ]  
-            let some: string = function(\"this is pretty cool!\", 10.0, other([120 100 10]))
-        }
-
-        fn main(string one, i32 other) f32 {
-        fn other(string other) i8 {
-        let wow:i32 = 1
-        }
-            {
-                let wow:string = other
-            }
-        }
-        ";
+    let string_vars = fs::read_to_string("./test_code/main.zon").unwrap_or(
+        "Coulnd't read file at ./test_code/main.zon, you are probably not in the root of project."
+            .into(),
+    );
 
     // Lexing
     let mut lex = Tokenizer::new(&string_vars);
@@ -40,5 +26,6 @@ fn main() {
 
     // Parsing
     let mut parser = Parser::new(lex.clone());
-    println!("{:#?}", parser.parse());
+    let ast = parser.parse();
+    println!("{:#?}", ast);
 }

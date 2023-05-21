@@ -8,9 +8,10 @@ use self::function::Function;
 pub mod block;
 pub mod function;
 pub mod function_call;
+pub mod logic;
+pub mod r#return;
 pub mod types;
 pub mod variable;
-pub mod logic;
 
 #[derive(Debug, PartialEq)]
 pub enum Expr {
@@ -19,6 +20,7 @@ pub enum Expr {
     FunctionCall(function_call::FunctionCall),
     Block(block::Block),
     Logic(logic::Statement),
+    Return(r#return::Return),
     Program,
 }
 

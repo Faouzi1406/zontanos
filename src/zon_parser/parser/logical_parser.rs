@@ -124,7 +124,7 @@ impl IfElseParser for Parser {
         let Some(type_value) = self.next() else {
             return Err(ParseErrors::ExpectedNext(line).to_string());
         };
-        let first_val = Parser::parse_value(type_value)?;
+        let first_val = self.parse_value(type_value)?;
         case.value_1 = first_val;
 
         let Some(operator) =  self.next() else {
@@ -144,7 +144,7 @@ impl IfElseParser for Parser {
                 let Some(second_value)  = self.next() else {
                     return Err(ParseErrors::ExpectedNext(line).to_string());
                 };
-                let second_value = Parser::parse_value(second_value)?;
+                let second_value = self.parse_value(second_value)?;
                 case.value_2 = Some(second_value);
                 case.operator = Some(parse_op);
                 return Ok(case);
