@@ -1,7 +1,5 @@
 //! src/ast
-//!
-//! This will contain the Ast of the language.
-//! The Ast will be used to compile the language into llvm-ir;
+
 #![allow(dead_code)]
 
 use self::function::Function;

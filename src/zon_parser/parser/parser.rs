@@ -293,7 +293,10 @@ impl ParseTokens for Parser {
                     self.advance_back(1);
                     block.insert_node(Expr::Block(self.parse_block()?));
                 }
-                Tokens::Kw(Keywords::Return) => {}
+                Tokens::Kw(Keywords::Return) => {
+                    let return_value = self.parse_ret()?;
+                    block.insert_node(Expr::Return(return_value));
+                }
                 Tokens::CloseCurlyBracket => {
                     return Ok(block);
                 }
