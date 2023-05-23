@@ -147,7 +147,7 @@ impl FunctionParser for Parser {
         let return_type = self.parse_function_return_type(function_name.line)?;
         return Ok(Function {
             name: function_name.value,
-            block: self.parse_block()?,
+            block: self.parse_block(return_type.clone())?,
             return_type,
             params,
             line: function_name.line,

@@ -11,7 +11,7 @@ pub mod r#return;
 pub mod types;
 pub mod variable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Variable(variable::Variable),
     Function(function::Function),

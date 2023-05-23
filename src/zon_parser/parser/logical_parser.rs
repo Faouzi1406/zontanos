@@ -5,7 +5,7 @@ use crate::{
     ast::{
         block::Block,
         logic::{Case, LogicalStatements, Statement},
-        types::VarTypes,
+        types::{MarkerTypes, VarTypes},
         Expr,
     },
     zon_parser::{
@@ -34,7 +34,7 @@ impl IfElseParser for Parser {
         Parser::parse_expect(if_statement.token_type, Tokens::Kw(Keywords::If))?;
 
         let statements = self.parse_statements(line)?;
-        let parse_block = self.parse_block()?;
+        let parse_block = self.parse_block(MarkerTypes::None)?;
 
         let mut if_statement = Statement {
             if_block: parse_block,
@@ -53,7 +53,7 @@ impl IfElseParser for Parser {
         let is_else = self.next()?;
 
         if let Tokens::Kw(Keywords::Else) = is_else.token_type {
-            if let Ok(get_else_block) = self.parse_block() {
+            if let Ok(get_else_block) = self.parse_block(MarkerTypes::None) {
                 return Some(Ok(get_else_block));
             } else {
                 let no_block_after_else = format!(
@@ -124,7 +124,7 @@ impl IfElseParser for Parser {
         let Some(type_value) = self.next() else {
             return Err(ParseErrors::ExpectedNext(line).to_string());
         };
-        let first_val = self.parse_value(type_value)?;
+        let first_val = self.parse_value(type_value, MarkerTypes::None)?;
         case.value_1 = first_val;
 
         let Some(operator) =  self.next() else {
@@ -144,7 +144,7 @@ impl IfElseParser for Parser {
                 let Some(second_value)  = self.next() else {
                     return Err(ParseErrors::ExpectedNext(line).to_string());
                 };
-                let second_value = self.parse_value(second_value)?;
+                let second_value = self.parse_value(second_value, MarkerTypes::None)?;
                 case.value_2 = Some(second_value);
                 case.operator = Some(parse_op);
                 return Ok(case);

@@ -2,7 +2,7 @@ use crate::zon_parser::lexer::Operator;
 
 use super::{block::Block, types::VarTypes};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Statement {
     pub statements: Vec<LogicalStatements>,
     pub if_block: Block,
@@ -16,7 +16,7 @@ pub struct Case {
     pub value_2: Option<VarTypes>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LogicalStatements {
     And(Case, Case),
     AndNext,

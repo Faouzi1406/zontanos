@@ -2,7 +2,9 @@
 
 pub mod gen_array;
 pub mod gen_block;
+pub mod gen_function;
 pub mod gen_var;
+pub mod gen_return_value;
 
 use crate::ast::{block::Block, Ast, Expr};
 use inkwell::{builder::Builder, context::Context, module::Module};
@@ -17,23 +19,41 @@ pub struct CodeGen<'ctx> {
 }
 
 impl<'ctx> CodeGen<'ctx> {
-    pub fn compile_default(&'ctx self, ast: Ast) -> CompileResult<String> {
+    pub fn compile_default(ast: &'ctx Ast) -> CompileResult<String> {
         if !ast.starts_with_program() {
             return Err("The first node in the AST wasn't a program node".into());
         }
 
-        let compile_tree = self.compile_tree(&ast);
+        let context = Context::create();
+        let builder = context.create_builder();
+        let module = context.create_module("main");
+
+        let code_gen = CodeGen {
+            builder,
+            context: &context,
+            module,
+        };
+
+        let compile_tree = code_gen.compile_tree(&ast);
 
         return Ok(compile_tree?);
     }
 
-    pub(super) fn compile_tree(&'ctx self, ast:  Ast) -> CompileResult<String> {
-        for node in &ast.body {
+    pub(super) fn compile_tree(&self, ast: &'ctx Ast) -> CompileResult<String> {
+        for node in ast.body.iter() {
             match node {
-                Expr::Block(block) => self.gen_block(block)?,
+                Expr::Block(block) => {
+                    return Err(
+                        format!("Tried creating a block with no scope, is not allowed.").into(),
+                    )
+                }
                 Expr::Logic(logic) => {}
                 Expr::Variable(var) => {}
-                Expr::Function(func) => {}
+                Expr::Function(func) => {
+                    let block = self.gen_function(func.clone())?;
+                    self.builder.position_at_end(block);
+                    self.gen_block(&func.block);
+                }
                 Expr::FunctionCall(call) => {}
                 Expr::Return(ret) => {}
                 Expr::Program => continue,

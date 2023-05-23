@@ -1,6 +1,6 @@
 use super::{variable::VarData, Expr};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Block {
     pub body: Vec<Expr>,
     pub line: usize,

@@ -58,7 +58,7 @@ impl Paramater {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Function {
     pub name: String,
     pub block: Block,

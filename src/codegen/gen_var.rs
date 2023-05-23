@@ -1,6 +1,9 @@
-use std::error::Error;
+use std::{error::Error, println};
 
-use inkwell::{types::BasicType, values::BasicValue};
+use inkwell::{
+    types::BasicType,
+    values::{ArrayValue, BasicValue, IntValue},
+};
 
 use super::CodeGen;
 use crate::ast::{
@@ -9,15 +12,58 @@ use crate::ast::{
 };
 
 impl<'ctx> CodeGen<'ctx> {
-    pub(super) fn gen_var(&'ctx self, variable: &'ctx Variable) -> Result<(), String> {
+    pub(super) fn gen_scoped_var(&self, variable: &'ctx Variable) -> Result<(), String> {
         let Some(variable_name) = variable.get_name() else {
             return Err(Self::variable_no_name(variable.var_line));
         };
 
         match &variable.var_type {
             VarTypes::None => Err(Self::variable_has_no_type(variable_name, variable.var_line)),
-            VarTypes::Array { array, array_type } => self.gen_array(&variable),
+            VarTypes::Array { array, array_type } => self.gen_array(variable),
+            VarTypes::U8(u8) => {
+                let i8 = self.context.i8_type();
+                let int_value = i8.const_int(*u8 as u64, false);
+                self.create_variable(i8, variable_name.to_string(), int_value);
+                Ok(())
+            }
+            VarTypes::I8(i8_value) => {
+                let i8 = self.context.i8_type();
+                let int_value = i8.const_int(*i8_value as u64, false);
+                self.create_variable(i8, variable_name.to_string(), int_value);
+                Ok(())
+            }
+            VarTypes::I32(i32_value) => {
+                let i32 = self.context.i32_type();
+                let int_value = i32.const_int(*i32_value as u64, false);
+                self.create_variable(i32, variable_name.to_string(), int_value);
+                Ok(())
+            }
+            VarTypes::F32(f32_value) => {
+                let f32 = self.context.f32_type();
+                let int_value = f32.const_float(*f32_value as f64);
+                self.create_variable(f32, variable_name.to_string(), int_value);
+                Ok(())
+            }
             _ => unimplemented!(),
+        }
+    }
+
+    pub(super) fn gen_const_string_variable(
+        self,
+        variable: &'ctx Variable,
+    ) -> Result<ArrayValue, String> {
+        let variable_name = &variable.var_name;
+        match &variable.var_type {
+            VarTypes::String(value) => {
+                let string = self.context.const_string(value.as_bytes(), false);
+                return Ok(string);
+            }
+            _ => {
+                return Err(Self::expected_string_value(
+                    &variable_name,
+                    variable.var_line,
+                ))
+            }
         }
     }
 
@@ -39,6 +85,11 @@ impl<'ctx> CodeGen<'ctx> {
 
     pub(super) fn variable_has_no_type(name: &str, line: usize) -> String {
         let msg = format!("Found a variable without a type let {name}:T = T; line: {line}");
+        msg
+    }
+
+    pub(super) fn expected_string_value(name: &str, line: usize) -> String {
+        let msg = format!("Tried to create a string but the variable type was not of string, variable: {name} line: {line}");
         msg
     }
 }

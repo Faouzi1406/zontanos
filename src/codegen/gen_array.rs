@@ -1,46 +1,53 @@
-use inkwell::values::ArrayValue;
-use inkwell::values::IntValue;
+use super::CodeGen;
 use crate::ast::r#return;
 use crate::ast::types::MarkerTypes;
 use crate::ast::types::VarTypes;
 use crate::ast::variable::VarData;
 use crate::ast::variable::Variable;
-use super::CodeGen;
+use inkwell::types::FloatType;
+use inkwell::types::IntType;
+use inkwell::values::ArrayValue;
+use inkwell::values::IntValue;
 
-impl<'ctx> CodeGen<'ctx> {
-    pub(super) fn gen_array(&'ctx self, variable: &'ctx Variable) -> Result<(), String> {
-        let Some(var_name) = variable.get_name() else {
-            return Err(Self::variable_no_name(variable.var_line));
-        };
+impl CodeGen<'_> {
+    pub(super) fn gen_array(&self, variable: &Variable) -> Result<(), String> {
+        let var_name = &variable.var_name;
 
-        let VarTypes::Array { array, array_type } = &variable.var_type else {
+        let VarTypes::Array { array, array_type } = variable.var_type.clone() else {
             panic!("Gen array should never be called if the type of the variable isn't of and Array.")
         };
 
-        match array_type {
+        let array_length = self.context.i8_type();
+        let len = array_length.const_int(array.len() as u64, false);
+
+        match &array_type {
             MarkerTypes::I8 => {
                 let i8  = self.context.i8_type();
                 let name = var_name.to_string();
-                let array = self.gen_i8_array(array)?;
-                self.create_variable(i8, name, array);
+                let array = Self::gen_i8_array_value(i8, array)?;
+                let array_type = array.get_type();
+                self.create_variable(array_type, var_name.to_string(), array);
             }
             MarkerTypes::I32 => {
                 let i32  = self.context.i32_type();
                 let name = var_name.to_string();
-                let array = self.gen_i32_type(array)?;
-                self.create_variable(i32, name, array);
+                let array = Self::gen_i32_array_value(i32, array)?;
+                let array_type = array.get_type();
+                self.create_variable(array_type, var_name.to_string(), array);
             }
             MarkerTypes::F32 => {
-                let f32 = self.context.i32_type();
+                let f32 = self.context.f32_type();
                 let name = var_name.to_string();
-                let array = self.gen_f32_type(array)?;
-                self.create_variable(f32, name, array);
+                let array = Self::gen_float_array_value(f32, array)?;
+                let array_type = array.get_type();
+                self.create_variable(array_type, var_name.to_string(), array);
             }
             MarkerTypes::Char => {
                 let char = self.context.i8_type();
                 let name = var_name.to_string();
-                let array = self.gen_i8_array(array)?;
-                self.create_variable(char, name, array);
+                let array = Self::gen_i8_array_value(char,array)?;
+                let array_type = array.get_type();
+                self.create_variable(array_type, var_name.to_string(), array);
             }
             MarkerTypes::String => {}
             unsupported => 
@@ -50,51 +57,49 @@ impl<'ctx> CodeGen<'ctx> {
         Ok(())
     }
 
-    fn gen_i8_array(&self, arr: &'ctx Vec<VarTypes>) -> Result<ArrayValue, String> {
-        let i8 = self.context.i8_type();
+    pub(super) fn gen_i32_array_value(typeof_int: IntType, arr: Vec<VarTypes>) -> Result<ArrayValue, String> {
         let mut values = Vec::new();
-        
-        for value in arr {
-            let VarTypes::I8(value) = value else {
-                return Err(Self::expected_array_value_but_got("i8"));
-            };
-            let value = i8.const_int(*value as u64, false);
-            values.push(value)
-        }
 
-        let const_array  = i8.const_array(&values);
-        Ok(const_array)
-    }
-
-    fn gen_i32_type(&self, arr: &'ctx Vec<VarTypes>) -> Result<ArrayValue, String> {
-        let i32 = self.context.i32_type();
-        let mut values = Vec::new();
-        
         for value in arr {
             let VarTypes::I32(value) = value else {
                 return Err(Self::expected_array_value_but_got("i32"));
             };
-            let value = i32.const_int(*value as u64, false);
+            let value = typeof_int.const_int(value as u64, false);
             values.push(value)
         }
 
-        let const_array  = i32.const_array(&values);
+        let const_array = typeof_int.const_array(&values);
         Ok(const_array)
     }
 
-    fn gen_f32_type(&self, arr: &'ctx Vec<VarTypes>) -> Result<ArrayValue, String> {
-        let f32 = self.context.f32_type();
+    pub(super) fn gen_i8_array_value(typeof_int: IntType, arr: Vec<VarTypes>) -> Result<ArrayValue, String> {
         let mut values = Vec::new();
-        
+
+        for value in arr {
+            let value = match value {
+                VarTypes::I8(value) => typeof_int.const_int(value as u64, false),
+                VarTypes::Char(value) => typeof_int.const_int(value.into(), false),
+                _ => return Err(Self::expected_array_value_but_got("i8")),
+            };
+            values.push(value);
+        }
+
+        let const_array = typeof_int.const_array(&values);
+        Ok(const_array)
+    }
+
+    pub(super)fn gen_float_array_value(typeof_float: FloatType, arr: Vec<VarTypes>) -> Result<ArrayValue, String> {
+        let mut values = Vec::new();
+
         for value in arr {
             let VarTypes::F32(value) = value else {
                 return Err(Self::expected_array_value_but_got("f32"));
             };
-            let value = f32.const_float(*value as f64);
+            let value = typeof_float.const_float(value as f64);
             values.push(value)
         }
 
-        let const_array  = f32.const_array(&values);
+        let const_array = typeof_float.const_array(&values);
         Ok(const_array)
     }
 

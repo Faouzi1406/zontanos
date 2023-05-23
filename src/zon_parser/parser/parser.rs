@@ -56,7 +56,7 @@ pub trait ParseTokens {
     fn parse_var_assignment(&mut self) -> Result<Variable, String>;
     fn parse_type_assignment(&mut self, line: usize) -> Result<VarTypes, String>;
     fn parse_array(&mut self, array_type: MarkerTypes) -> Result<VarTypes, String>;
-    fn parse_block(&mut self) -> Result<Block, String>;
+    fn parse_block(&mut self, return_type: MarkerTypes) -> Result<Block, String>;
 }
 
 impl ParseTokens for Parser {
@@ -168,22 +168,8 @@ impl ParseTokens for Parser {
                 return Ok(value_type);
             }
             Tokens::Identifier => {
-                let value = self.parse_value(value)?;
-                match value {
-                    VarTypes::FunctionCall(call, _) => {
-                        Ok(VarTypes::FunctionCall(
-                            call,
-                            MarkerTypes::from_str(&var_type.value)?,
-                        ))
-                    }
-                    VarTypes::Identifier(id, _) => {
-                        Ok(VarTypes::Identifier(
-                            id,
-                            MarkerTypes::from_str(&var_type.value)?,
-                        ))
-                    }
-                    _ => return Err("Expected the variable type value to be of identifier or function call but it wasn't".to_string()) 
-                }
+                let value = self.parse_value(value, MarkerTypes::from_str(&var_type.value)?)?;
+                return Ok(value);
             }
             _ => return Err(ParseErrors::ExpectedType(line).to_string()),
         }
@@ -212,16 +198,8 @@ impl ParseTokens for Parser {
                 Tokens::Number => {}
                 Tokens::FloatNumber => {}
                 Tokens::Identifier => {
-                    let value = self.parse_value(token)?;
-                    match value {
-                        VarTypes::FunctionCall(call, _) => {
-                            array.push(VarTypes::FunctionCall(call, array_type.clone()));
-                        }
-                        VarTypes::Identifier(id, _) => {
-                            array.push(VarTypes::Identifier(id, array_type.clone()));
-                        }
-                        _ => return Err("Expected array identifier to be identifier or function call but it wasn't".to_string())
-                    }
+                    let value = self.parse_value(token, array_type.clone())?;
+                    array.push(value);
                     continue;
                 }
                 _ => return Err(ParseErrors::ExpectedType(prev_token.line).to_string()),
@@ -253,7 +231,7 @@ impl ParseTokens for Parser {
         return Ok(VarTypes::Array { array, array_type });
     }
 
-    fn parse_block(&mut self) -> Result<Block, String> {
+    fn parse_block(&mut self, array_type: MarkerTypes) -> Result<Block, String> {
         let ast_vec = Vec::new();
 
         let Some(open_block) = self.next() else {
@@ -291,10 +269,10 @@ impl ParseTokens for Parser {
                 }
                 Tokens::OpenCurlyBracket => {
                     self.advance_back(1);
-                    block.insert_node(Expr::Block(self.parse_block()?));
+                    block.insert_node(Expr::Block(self.parse_block(MarkerTypes::None)?));
                 }
                 Tokens::Kw(Keywords::Return) => {
-                    let return_value = self.parse_ret()?;
+                    let return_value = self.parse_ret(array_type.clone())?;
                     block.insert_node(Expr::Return(return_value));
                 }
                 Tokens::CloseCurlyBracket => {
@@ -320,7 +298,7 @@ impl Parser {
     /// Parse the tokens into a Ast
     ///
     /// Returns a Ok(Ast) or the Err(Vec<String>) containing all the errors it was able to find
-    pub fn parse(&mut self) -> Result<Ast, Vec<String>> {
+    pub fn parse<'ctx>(&mut self) -> Result<Ast, Vec<String>> {
         let mut errors = Vec::new();
         let mut ast = Ast::new();
 
@@ -357,7 +335,7 @@ impl Parser {
                 }
                 Tokens::OpenCurlyBracket => {
                     self.advance_back(1);
-                    let parse_block = self.parse_block();
+                    let parse_block = self.parse_block(MarkerTypes::None);
                     let Ok(parsed_block) = parse_block else {
                         errors.push(parse_block.err().unwrap());
                         return Err(errors);
@@ -374,9 +352,17 @@ impl Parser {
         Ok(ast)
     }
 
-    pub fn parse_value(&mut self, token: Token) -> Result<VarTypes, String> {
+    pub fn parse_value(
+        &mut self,
+        token: Token,
+        marker_type: MarkerTypes,
+    ) -> Result<VarTypes, String> {
         let line = token.line;
         match token.token_type {
+            Tokens::OpenBracket => {
+                self.advance_back(1);
+                self.parse_array(marker_type)
+            },
             Tokens::Identifier => {
                 let Some(is_call) = self.next() else {
                     return Err(ParseErrors::ExpectedNext(line).to_string());
@@ -386,7 +372,7 @@ impl Parser {
                 if let Tokens::OpenBrace = is_call.token_type {
                     return Ok(VarTypes::FunctionCall(
                         self.parse_function_call(token.value, line)?,
-                        MarkerTypes::None,
+                        marker_type,
                     ));
                 }
 
