@@ -33,11 +33,12 @@ fn main() -> Result<(), &'static str> {
 
     let create = fs::File::create("./main.l");
     if let Ok(mut file) = create {
-        let Ok(write) = file.write(ok.as_bytes()) else {
+        let Ok(_) = file.write(ok.as_bytes()) else {
             return Err("Coulnd't write output to file");
         };
         return Ok(());
     };
+
     println!("{create:#?}");
     return Err("Coulnd't create file and compile");
 }

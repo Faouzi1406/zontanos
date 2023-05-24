@@ -3,18 +3,20 @@ use std::{unimplemented, unreachable};
 
 use inkwell::basic_block::BasicBlock;
 use inkwell::types::{BasicMetadataTypeEnum, FunctionType};
+use inkwell::values::FunctionValue;
 
 use crate::ast::function::Function;
+use crate::ast::r#return::Return;
 use crate::ast::types::MarkerTypes;
 
 use super::CodeGen;
 
 impl<'ctx> CodeGen<'ctx> {
-    pub(super) fn gen_function(&self, function: Function) -> Result<BasicBlock, String> {
+    pub(super) fn gen_function(&self, function: Function) -> Result<(FunctionValue,BasicBlock), String> {
         let return_value = self.fn_return_value(&function);
         let function = self.module.add_function(&function.name, return_value, None);
         let block = self.context.append_basic_block(function, "entry");
-        return Ok(block);
+        return Ok((function, block));
     }
 
     fn fn_return_value(&self, function: &Function) -> FunctionType<'ctx> {
@@ -55,5 +57,23 @@ impl<'ctx> CodeGen<'ctx> {
             }
         }
         vec
+    }
+
+    pub(super) fn gen_function_return(&self, ret: &Return) {
+        if ret.is_int_return() {
+            if let Some(int_return) = self.get_int_return_value(ret) {
+                self.builder.build_return(Some(&int_return));
+            };
+        }
+        if ret.is_float_return() {
+            if let Some(int_return) = self.gen_float_return_type(ret) {
+                self.builder.build_return(Some(&int_return));
+            };
+        }
+        if ret.is_array_return() {
+            if let Some(int_return) = self.gen_arr_return_type(ret) {
+                self.builder.build_return(Some(&int_return));
+            };
+        }
     }
 }

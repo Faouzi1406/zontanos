@@ -2,7 +2,7 @@ use std::{error::Error, println};
 
 use inkwell::{
     types::BasicType,
-    values::{ArrayValue, BasicValue, IntValue},
+    values::{ArrayValue, BasicValue, FunctionValue, IntValue},
 };
 
 use super::CodeGen;
@@ -12,7 +12,11 @@ use crate::ast::{
 };
 
 impl<'ctx> CodeGen<'ctx> {
-    pub(super) fn gen_scoped_var(&self, variable: &'ctx Variable) -> Result<(), String> {
+    pub(super) fn gen_scoped_var(
+        &self,
+        variable: &'ctx Variable,
+        scope: FunctionValue,
+    ) -> Result<(), String> {
         let Some(variable_name) = variable.get_name() else {
             return Err(Self::variable_no_name(variable.var_line));
         };
@@ -44,27 +48,23 @@ impl<'ctx> CodeGen<'ctx> {
                 self.create_variable(f32, variable_name.to_string(), int_value);
                 Ok(())
             }
+            VarTypes::String(str) => {
+                let string = self.context.const_string(str.as_bytes(), false);
+                let string_type = string.get_type();
+                self.create_variable(string_type, variable_name.to_string(), string);
+                Ok(())
+            }
+            VarTypes::FunctionCall(call, _) => {
+                self.gen_named_function_call(call, scope, variable_name);
+                Ok(())
+            },
             _ => unimplemented!(),
         }
     }
 
-    pub(super) fn gen_const_string_variable(
-        self,
-        variable: &'ctx Variable,
-    ) -> Result<ArrayValue, String> {
-        let variable_name = &variable.var_name;
-        match &variable.var_type {
-            VarTypes::String(value) => {
-                let string = self.context.const_string(value.as_bytes(), false);
-                return Ok(string);
-            }
-            _ => {
-                return Err(Self::expected_string_value(
-                    &variable_name,
-                    variable.var_line,
-                ))
-            }
-        }
+    pub(super) fn gen_const_string_variable(&self, str: String) -> Result<ArrayValue, String> {
+        let string = self.context.const_string(str.as_bytes(), false);
+        return Ok(string);
     }
 
     pub(super) fn create_variable<T: BasicType<'ctx>, V: BasicValue<'ctx>>(
@@ -88,8 +88,10 @@ impl<'ctx> CodeGen<'ctx> {
         msg
     }
 
-    pub(super) fn expected_string_value(name: &str, line: usize) -> String {
-        let msg = format!("Tried to create a string but the variable type was not of string, variable: {name} line: {line}");
+    pub(super) fn expected_string_value(line: usize) -> String {
+        let msg = format!(
+            "Tried to create a string but the variable type was not of string,  line: {line}"
+        );
         msg
     }
 }

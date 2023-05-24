@@ -2,9 +2,10 @@
 
 pub mod gen_array;
 pub mod gen_block;
+pub mod gen_func_call;
 pub mod gen_function;
-pub mod gen_var;
 pub mod gen_return_value;
+pub mod gen_var;
 
 use crate::ast::{block::Block, Ast, Expr};
 use inkwell::{builder::Builder, context::Context, module::Module};
@@ -50,9 +51,9 @@ impl<'ctx> CodeGen<'ctx> {
                 Expr::Logic(logic) => {}
                 Expr::Variable(var) => {}
                 Expr::Function(func) => {
-                    let block = self.gen_function(func.clone())?;
+                    let (function, block) = self.gen_function(func.clone())?;
                     self.builder.position_at_end(block);
-                    self.gen_block(&func.block);
+                    self.gen_block(&func.block, Some(function));
                 }
                 Expr::FunctionCall(call) => {}
                 Expr::Return(ret) => {}

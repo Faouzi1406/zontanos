@@ -1,4 +1,9 @@
+fn other(i32 x) i32 {
+	return 0;
+}
+
 fn main() i32 {
-	let some: array:char = ['a' 'b' 'c']
+	let some: string = "dit is een test!"
+	let call_to_func: i32 = other(10)
 	return 0;
 } 

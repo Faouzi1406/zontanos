@@ -2,7 +2,7 @@
 
 use inkwell::{
     types::ArrayType,
-    values::{BasicValue, IntValue},
+    values::{BasicValue, FunctionValue, IntValue},
 };
 use std::{borrow::Borrow, error::Error, todo};
 
@@ -20,33 +20,23 @@ use crate::{
 type CompileBlock = Result<(), Box<dyn Error>>;
 
 impl<'ctx> CodeGen<'ctx> {
-    pub(super) fn gen_block(&self, Block { body, line }: &'ctx Block) -> CompileBlock {
+    pub(super) fn gen_block(
+        &self,
+        Block { body, line }: &'ctx Block,
+        scope: Option<FunctionValue>,
+    ) -> CompileBlock {
         for expr in body {
             match expr {
-                Expr::Variable(var) => self.gen_scoped_var(&var)?,
+                Expr::Variable(var) => {
+                    let Some(scope) = scope else {
+                        return Err("tried to creat a scoped variable but no scope was given".into());
+                    };
+                    self.gen_scoped_var(&var, scope)?
+                }
                 Expr::FunctionCall(call) => {}
                 Expr::Block(block) => {}
                 Expr::Logic(logic) => {}
-                Expr::Return(ret) => {
-                    if ret.is_int_return() {
-                        if let Some(int_return) = self.get_int_return_value(ret) {
-                            self.builder.build_return(Some(&int_return));
-                        };
-                        continue;
-                    }
-                    if ret.is_float_return() {
-                        if let Some(int_return) = self.gen_float_return_type(ret) {
-                            self.builder.build_return(Some(&int_return));
-                        };
-                        continue;
-                    }
-                    if ret.is_array_return() {
-                        if let Some(int_return) = self.gen_arr_return_type(ret) {
-                            self.builder.build_return(Some(&int_return));
-                        };
-                        continue;
-                    }
-                }
+                Expr::Return(ret) => self.gen_function_return(ret),
                 this => {
                     unimplemented!("This is currently not yet supported inside a block: {this:#?}")
                 }
