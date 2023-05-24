@@ -3,7 +3,7 @@ use inkwell::values::{
     AnyValue, AsValueRef, BasicMetadataValueEnum, FunctionValue, InstructionValue,
 };
 
-use super::CodeGen;
+use super::{std_gen::std_functions::StdFunctions, CodeGen};
 
 impl<'ctx> CodeGen<'ctx> {
     pub(super) fn gen_named_function_call(
@@ -12,12 +12,15 @@ impl<'ctx> CodeGen<'ctx> {
         scope: FunctionValue,
         name: &str,
     ) -> Result<(), String> {
+        let arguments = &call.args;
+        let arguments = self.get_call_args(arguments.to_vec(), scope)?;
+
         if let Some(func_call) = self.module.get_function(&call.call_to) {
             let params = func_call.get_params();
-            let arguments = &call.args;
-            let arguments = self.get_call_args(arguments.to_vec(), scope)?;
             self.builder.build_call(func_call, &arguments, name);
         };
+
+        self.gen_std_func(arguments, scope, Some(name), &call.call_to)?;
 
         return Err(format!(
             "There is no function with the name: {} on line: {}",
@@ -35,8 +38,8 @@ impl<'ctx> CodeGen<'ctx> {
         for value in arguments {
             match value {
                 VarTypes::String(value_str) => {
-                    let string_value = self.gen_const_string_variable(value_str)?;
-                    value_vec.push(string_value.into());
+                    let string_value = self.builder.build_global_string_ptr(&value_str, "call_str");
+                    value_vec.push(string_value.as_pointer_value().into());
                 }
                 VarTypes::U8(value_u8) => {
                     let u8 = self.context.i8_type();

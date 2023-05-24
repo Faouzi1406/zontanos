@@ -5,5 +5,6 @@ fn other(i32 x) i32 {
 fn main() i32 {
 	let some: string = "dit is een test!"
 	let call_to_func: i32 = other(10)
+	let print_something: string = printf("hello world!%csee this is very cool! %c", '\n', '\n')
 	return 0;
 } 

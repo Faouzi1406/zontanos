@@ -6,6 +6,7 @@ pub mod gen_func_call;
 pub mod gen_function;
 pub mod gen_return_value;
 pub mod gen_var;
+pub mod std_gen;
 
 use crate::ast::{block::Block, Ast, Expr};
 use inkwell::{builder::Builder, context::Context, module::Module};

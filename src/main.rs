@@ -25,7 +25,6 @@ fn main() -> Result<(), &'static str> {
     // Parsing
     let mut parser = Parser::new(lex.clone());
     let ast = parser.parse();
-    println!("{:#?}", ast);
     let ast = ast.as_ref().unwrap();
 
     let code_gen = CodeGen::compile_default(ast);

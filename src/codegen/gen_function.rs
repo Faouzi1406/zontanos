@@ -12,7 +12,10 @@ use crate::ast::types::MarkerTypes;
 use super::CodeGen;
 
 impl<'ctx> CodeGen<'ctx> {
-    pub(super) fn gen_function(&self, function: Function) -> Result<(FunctionValue,BasicBlock), String> {
+    pub(super) fn gen_function(
+        &self,
+        function: Function,
+    ) -> Result<(FunctionValue, BasicBlock), String> {
         let return_value = self.fn_return_value(&function);
         let function = self.module.add_function(&function.name, return_value, None);
         let block = self.context.append_basic_block(function, "entry");

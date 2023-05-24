@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::fmt::Display;
+use core::fmt::Display;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tokens {
@@ -327,8 +327,38 @@ impl Tokenize for Tokenizer {
         };
 
         match tokens_until {
-            'a'..='z' | 'A'..='Z' => {
-                if self.next() == Some('\'') {
+            'a'..='z' | 'A'..='Z' | '\\' => {
+                let char_close = self.next();
+
+                match char_close.unwrap() {
+                    'n' => {
+                        let Some('\'') =  self.next() else {
+                            return Token::new(line, Tokens::InvalidToken(TokenErrorMessages::CharNoEnd), &tokens_until.to_string(),);
+                        };
+                        return Token::new(line, Tokens::Char, "\n");
+                    }
+                    't' => {
+                        let Some('\'') =  self.next() else {
+                            return Token::new(line, Tokens::InvalidToken(TokenErrorMessages::CharNoEnd), &tokens_until.to_string(),);
+                        };
+                        return Token::new(line, Tokens::Char, "\t");
+                    }
+                    '\\' => {
+                        let Some('\'') =  self.next() else {
+                            return Token::new(line, Tokens::InvalidToken(TokenErrorMessages::CharNoEnd), &tokens_until.to_string(),);
+                        };
+                        return Token::new(line, Tokens::Char, "\\");
+                    }
+                    '0' => {
+                        let Some('\'') =  self.next() else {
+                            return Token::new(line, Tokens::InvalidToken(TokenErrorMessages::CharNoEnd), &tokens_until.to_string(),);
+                        };
+                        return Token::new(line, Tokens::Char, "\0");
+                    }
+                    _ => {}
+                };
+
+                if char_close == Some('\'') {
                     Token::new(line, Tokens::Char, &tokens_until.to_string())
                 } else {
                     Token::new(
