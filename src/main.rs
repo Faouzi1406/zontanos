@@ -23,7 +23,7 @@ fn main() -> Result<(), &'static str> {
     let lex = Tokenizer::lex(&mut lex);
 
     // Parsing
-    let mut parser = Parser::new(lex.clone());
+    let mut parser = Parser::new(lex);
     let ast = parser.parse();
     let ast = ast.as_ref().unwrap();
 
@@ -38,6 +38,5 @@ fn main() -> Result<(), &'static str> {
         return Ok(());
     };
 
-    println!("{create:#?}");
     return Err("Coulnd't create file and compile");
 }

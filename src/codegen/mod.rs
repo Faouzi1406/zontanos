@@ -25,23 +25,19 @@ impl<'ctx> CodeGen<'ctx> {
         if !ast.starts_with_program() {
             return Err("The first node in the AST wasn't a program node".into());
         }
+        return Ok(Self::compile_tree(ast)?);
+    }
 
+    pub(super) fn compile_tree(ast: &'ctx Ast) -> CompileResult<String> {
         let context = Context::create();
-        let builder = context.create_builder();
         let module = context.create_module("main");
 
         let code_gen = CodeGen {
-            builder,
+            builder: context.create_builder(),
             context: &context,
             module,
         };
 
-        let compile_tree = code_gen.compile_tree(&ast);
-
-        return Ok(compile_tree?);
-    }
-
-    pub(super) fn compile_tree(&self, ast: &'ctx Ast) -> CompileResult<String> {
         for node in ast.body.iter() {
             match node {
                 Expr::Block(block) => {
@@ -52,16 +48,17 @@ impl<'ctx> CodeGen<'ctx> {
                 Expr::Logic(logic) => {}
                 Expr::Variable(var) => {}
                 Expr::Function(func) => {
-                    let (function, block) = self.gen_function(func.clone())?;
-                    self.builder.position_at_end(block);
-                    self.gen_block(&func.block, Some(function));
+                    let (function, block) = code_gen.gen_function(&func)?;
+                    code_gen.builder.position_at_end(block);
+                    code_gen.gen_block(&func.block, Some(function))?;
                 }
                 Expr::FunctionCall(call) => {}
                 Expr::Return(ret) => {}
                 Expr::Program => continue,
             }
         }
-        return Ok(self.module.to_string());
+
+        return Ok(code_gen.module.to_string());
     }
 }
 

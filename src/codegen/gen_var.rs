@@ -15,7 +15,7 @@ impl<'ctx> CodeGen<'ctx> {
     pub(super) fn gen_scoped_var(
         &self,
         variable: &'ctx Variable,
-        scope: FunctionValue,
+        scope: FunctionValue<'ctx>,
     ) -> Result<(), String> {
         let Some(variable_name) = variable.get_name() else {
             return Err(Self::variable_no_name(variable.var_line));
@@ -54,15 +54,15 @@ impl<'ctx> CodeGen<'ctx> {
                 self.create_variable(string_type, variable_name.to_string(), string);
                 Ok(())
             }
-            VarTypes::FunctionCall(call, _) => {
-                self.gen_named_function_call(call, scope, variable_name);
+            VarTypes::FunctionCall(call, expected_type) => {
+                let gen_func_call = self.gen_named_function_call(call, scope, variable_name, &expected_type)?;
                 Ok(())
-            },
+            }
             _ => unimplemented!(),
         }
     }
 
-    pub(super) fn gen_const_string_variable(&self, str: String) -> Result<ArrayValue, String> {
+    pub(super) fn gen_const_string_variable(&'ctx self, str: String) -> Result<ArrayValue, String> {
         let string = self.context.const_string(str.as_bytes(), false);
         return Ok(string);
     }

@@ -23,7 +23,7 @@ impl<'ctx> CodeGen<'ctx> {
     pub(super) fn gen_block(
         &self,
         Block { body, line }: &'ctx Block,
-        scope: Option<FunctionValue>,
+        scope: Option<FunctionValue<'ctx>>,
     ) -> CompileBlock {
         for expr in body {
             match expr {

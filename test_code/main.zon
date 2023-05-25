@@ -1,10 +1,11 @@
 fn other(i32 x) i32 {
-	return 0;
+	let some_print: i32 = printf("Other just got called %c", '\n')
+	return 25;
 }
 
 fn main() i32 {
-	let some: string = "dit is een test!"
-	let call_to_func: i32 = other(10)
-	let print_something: string = printf("hello world!%csee this is very cool! %c", '\n', '\n')
+	let call_to_func: i32 = printf("%c hello world! %c see this is very cool! %c", '\t', '\n', '\n')
+	let some_value: i32 = other(10)
+	let other_call: i32 = printf("%c hello world! %c see this is very cool! %c some_value = %d \n", '\t', '\n', '\n', some_value)
 	return 0;
 } 

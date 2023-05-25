@@ -46,33 +46,33 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    pub(super) fn gen_arr_return_type(&self, return_value: &Return) -> Option<impl BasicValue> {
+    pub(super) fn gen_arr_return_type(&self, return_value: &'ctx Return) -> Option<impl BasicValue> {
         match &return_value.0 {
             VarTypes::Array { array, array_type } => match array_type {
                 MarkerTypes::I8 => {
                     let i8 = self.context.i8_type();
-                    let Ok(array_value) = CodeGen::gen_i8_array_value(i8, array.to_vec()) else {
+                    let Ok(array_value) = CodeGen::gen_i8_array_value(i8, array) else {
                         return None;
                     };
                     Some(array_value)
                 }
                 MarkerTypes::I32 => {
                     let i32 = self.context.i32_type();
-                    let Ok(array_value) = CodeGen::gen_i32_array_value(i32, array.to_vec()) else {
+                    let Ok(array_value) = CodeGen::gen_i32_array_value(i32, array) else {
                         return None;
                     };
                     Some(array_value)
                 }
                 MarkerTypes::F32 => {
                     let f32 = self.context.f32_type();
-                    let Ok(array_value) = CodeGen::gen_float_array_value(f32, array.to_vec()) else {
+                    let Ok(array_value) = CodeGen::gen_float_array_value(f32, array) else {
                         return None;
                     };
                     Some(array_value)
                 }
                 MarkerTypes::Char => {
                     let i32 = self.context.i8_type();
-                    let Ok(array_value) = CodeGen::gen_i8_array_value(i32, array.to_vec()) else {
+                    let Ok(array_value) = CodeGen::gen_i8_array_value(i32, array) else {
                         return None;
                     };
                     Some(array_value)

@@ -14,8 +14,8 @@ use super::CodeGen;
 impl<'ctx> CodeGen<'ctx> {
     pub(super) fn gen_function(
         &self,
-        function: Function,
-    ) -> Result<(FunctionValue, BasicBlock), String> {
+        function: &Function,
+    ) -> Result<(FunctionValue<'ctx>, BasicBlock<'ctx>), String> {
         let return_value = self.fn_return_value(&function);
         let function = self.module.add_function(&function.name, return_value, None);
         let block = self.context.append_basic_block(function, "entry");
@@ -62,7 +62,7 @@ impl<'ctx> CodeGen<'ctx> {
         vec
     }
 
-    pub(super) fn gen_function_return(&self, ret: &Return) {
+    pub(super) fn gen_function_return(&self, ret: &'ctx Return) {
         if ret.is_int_return() {
             if let Some(int_return) = self.get_int_return_value(ret) {
                 self.builder.build_return(Some(&int_return));
