@@ -2,6 +2,7 @@ use std::{println, todo, unimplemented};
 
 use super::{std_gen::std_functions::StdFunctions, CodeGen};
 use crate::ast::{
+    function::{Function, Paramater},
     function_call::FunctionCall,
     types::{MarkerTypes, VarTypes},
 };
@@ -21,9 +22,11 @@ impl<'ctx> CodeGen<'ctx> {
         scope: FunctionValue<'ctx>,
         name: &str,
         expected_return: &MarkerTypes,
-    ) -> Result<(), String> {
+        func: Option<&'ctx Function>,
+    ) -> Result<CallSiteValue<'ctx>, String> {
         let arguments = &call.args;
-        let arguments = self.get_call_args(arguments, scope)?;
+        let params = &func.unwrap().params;
+        let arguments = self.get_call_args(arguments, scope, Some(params))?;
 
         if let Some(func_call) = self.module.get_function(&call.call_to) {
             let params = func_call.get_params();
@@ -36,22 +39,23 @@ impl<'ctx> CodeGen<'ctx> {
                     &call.call_to
                 ));
             }
-            return Ok(());
+            return Ok(call_return);
         };
 
         let return_value = self.gen_std_func(arguments, scope, Some(name), &call.call_to)?;
-        if &return_value != expected_return {
+        if &return_value.1 != expected_return {
             return Err(format!("Couldn't compile call to {} since the return type of {name} is not the expected return type of {}", name, expected_return.to_string()));
         }
 
-        return Ok(());
+        return Ok(return_value.0);
     }
 
     pub(super) fn get_call_args(
         &self,
         arguments: &Vec<VarTypes>,
         scope: FunctionValue<'ctx>,
-    ) -> Result<Vec<BasicMetadataValueEnum>, String> {
+        func_params: Option<&'ctx Vec<Paramater>>,
+    ) -> Result<Vec<BasicMetadataValueEnum<'ctx>>, String> {
         let mut value_vec = Vec::new();
 
         for value in arguments {
@@ -89,11 +93,19 @@ impl<'ctx> CodeGen<'ctx> {
                     let Some(block) = scope.get_first_basic_block() else {
                         return Err(format!("Found a identifier argument {id} but couldn't access any scope therefore {id} can't exist within the current scope."));
                     };
-                    let Some(variable) = block.get_instruction_with_name(&id) else {
-                        return Err(format!("Found a identifier argument {id} but couldn't find it, perhaps you made a naming mistake."));
+                    if let Some(variable) = block.get_instruction_with_name(&id) {
+                        let value = self.value_from_instruction(variable);
+                        value_vec.push(value);
+                        continue;
                     };
-                    let value = self.value_from_instruction(variable);
-                    value_vec.push(value);
+                    if let Some(param_index) = func_params.unwrap().iter().enumerate().find(|x| x.1.name == *id) {
+                        let Some(get_param) = scope.get_nth_param(param_index.0 as u32) else {
+                            return Err(format!("Found the paramater {id} in function paramaters but not in the scope paramters."));
+                        };
+                        value_vec.push(get_param.into());
+                        continue;
+                    }
+                    return Err(format!("Could not find any identifier with the name {id}."));
                 }
                 VarTypes::Array { array, array_type } => {}
                 VarTypes::FunctionCall(call, expected_type) => {}
@@ -125,7 +137,7 @@ impl<'ctx> CodeGen<'ctx> {
     pub(super) fn value_from_instruction(
         &self,
         instruction_value: InstructionValue<'ctx>,
-    ) -> BasicMetadataValueEnum {
+    ) -> BasicMetadataValueEnum<'ctx> {
         let value = instruction_value.as_any_value_enum();
         match instruction_value.get_type() {
             AnyTypeEnum::IntType(int) => value.into_int_value().into(),
@@ -142,7 +154,7 @@ impl<'ctx> CodeGen<'ctx> {
         &self,
         ptr_value: PointerValue<'ctx>,
         ptr_type: PointerType,
-    ) -> BasicMetadataValueEnum {
+    ) -> BasicMetadataValueEnum<'ctx> {
         match ptr_type.get_element_type() {
             AnyTypeEnum::ArrayType(_) => ptr_value.into(),
             _ => self.builder.build_load(ptr_value, "load").into(),

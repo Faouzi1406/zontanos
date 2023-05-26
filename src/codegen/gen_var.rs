@@ -8,7 +8,7 @@ use inkwell::{
 use super::CodeGen;
 use crate::ast::{
     types::{MarkerTypes, VarTypes},
-    variable::{VarData, Variable},
+    variable::{VarData, Variable}, function::Function,
 };
 
 impl<'ctx> CodeGen<'ctx> {
@@ -16,6 +16,7 @@ impl<'ctx> CodeGen<'ctx> {
         &self,
         variable: &'ctx Variable,
         scope: FunctionValue<'ctx>,
+        func: Option<&'ctx Function>
     ) -> Result<(), String> {
         let Some(variable_name) = variable.get_name() else {
             return Err(Self::variable_no_name(variable.var_line));
@@ -55,7 +56,7 @@ impl<'ctx> CodeGen<'ctx> {
                 Ok(())
             }
             VarTypes::FunctionCall(call, expected_type) => {
-                let gen_func_call = self.gen_named_function_call(call, scope, variable_name, &expected_type)?;
+                let gen_func_call = self.gen_named_function_call(call, scope, variable_name, &expected_type, func)?;
                 Ok(())
             }
             _ => unimplemented!(),

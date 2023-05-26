@@ -50,10 +50,12 @@ impl<'ctx> CodeGen<'ctx> {
                 Expr::Function(func) => {
                     let (function, block) = code_gen.gen_function(&func)?;
                     code_gen.builder.position_at_end(block);
-                    code_gen.gen_block(&func.block, Some(function))?;
+                    code_gen.gen_block(&func.block, Some(function), Some(func))?;
                 }
                 Expr::FunctionCall(call) => {}
-                Expr::Return(ret) => {}
+                Expr::Return(ret) => {
+                    return Err(format!("You can not have return statemetns outside of functions").into())
+                }
                 Expr::Program => continue,
             }
         }

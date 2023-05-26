@@ -3,33 +3,33 @@ use std::println;
 use inkwell::{
     module::Linkage,
     types::BasicMetadataTypeEnum,
-    values::{BasicMetadataValueEnum, FunctionValue},
+    values::{BasicMetadataValueEnum, CallSiteValue, FunctionValue},
     AddressSpace,
 };
 
 use crate::{ast::types::MarkerTypes, codegen::CodeGen};
 
-pub(crate) trait StdFunctions {
+pub(crate) trait StdFunctions<'ctx> {
     fn gen_std_func(
         &self,
-        args: Vec<BasicMetadataValueEnum>,
+        args: Vec<BasicMetadataValueEnum<'ctx>>,
         scope: FunctionValue,
         var_name: Option<&str>,
         name: &str,
-    ) -> Result<MarkerTypes, String>;
+    ) -> Result<(CallSiteValue<'ctx>, MarkerTypes), String>;
     fn gen_std_printf(&self, scope: FunctionValue) -> Result<(), String>;
 }
 
-impl StdFunctions for CodeGen<'_> {
+impl<'ctx> StdFunctions<'ctx> for CodeGen<'ctx> {
     /// Returns the return type of the std function it parsed or a err string, return type can be
     /// used to check if it is equal to that of the variable if it is a variable;
     fn gen_std_func(
         &self,
-        args: Vec<BasicMetadataValueEnum>,
+        args: Vec<BasicMetadataValueEnum<'ctx>>,
         scope: FunctionValue,
         var_name: Option<&str>,
         call_name: &str,
-    ) -> Result<MarkerTypes, String> {
+    ) -> Result<(CallSiteValue<'ctx>, MarkerTypes), String> {
         match call_name {
             "printf" => {
                 if let Some(print_f) = self.module.get_function("printf") {
@@ -41,12 +41,12 @@ impl StdFunctions for CodeGen<'_> {
                     };
 
                     if let Some(var_name) = var_name {
-                        self.builder.build_call(print_f, &args, var_name);
+                        let call = self.builder.build_call(print_f, &args, var_name);
+                        return Ok((call, MarkerTypes::I32));
                     } else {
-                        self.builder.build_call(print_f, &args, "");
+                        let call = self.builder.build_call(print_f, &args, "");
+                        return Ok((call, MarkerTypes::I32));
                     }
-
-                    return Ok(MarkerTypes::I32);
                 } else {
                     self.gen_std_printf(scope);
                     return self.gen_std_func(args, scope, var_name, call_name);

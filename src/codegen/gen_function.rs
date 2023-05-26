@@ -1,13 +1,15 @@
 use std::error::Error;
 use std::{unimplemented, unreachable};
 
+use inkwell::AddressSpace;
 use inkwell::basic_block::BasicBlock;
 use inkwell::types::{BasicMetadataTypeEnum, FunctionType};
-use inkwell::values::FunctionValue;
+use inkwell::values::{AnyValue, FunctionValue};
 
 use crate::ast::function::Function;
-use crate::ast::r#return::Return;
-use crate::ast::types::MarkerTypes;
+use crate::ast::function_call::FunctionCall;
+use crate::ast::r#return::{self, Return};
+use crate::ast::types::{MarkerTypes, VarTypes};
 
 use super::CodeGen;
 
@@ -45,7 +47,7 @@ impl<'ctx> CodeGen<'ctx> {
         for param in &function.params {
             match &param.paramater_type {
                 MarkerTypes::Array(_) => todo!("Add arrays for params"),
-                MarkerTypes::String => vec.push(self.context.i8_type().into()),
+                MarkerTypes::String => vec.push(self.context.i8_type().ptr_type(AddressSpace::default()).into()),
                 // This should be fine since the character is static thus conversion shouldn't
                 // cause any problems since those would be catched by the parser.
                 MarkerTypes::Char => vec.push(self.context.i8_type().into()),
@@ -62,21 +64,55 @@ impl<'ctx> CodeGen<'ctx> {
         vec
     }
 
-    pub(super) fn gen_function_return(&self, ret: &'ctx Return) {
+    pub(super) fn gen_function_return(
+        &self,
+        ret: &'ctx Return,
+        scope: FunctionValue<'ctx>,
+        func: &'ctx Function,
+    ) -> Result<(), String> {
+        if let VarTypes::FunctionCall(call, _) = &ret.0 {
+            self.gen_return_from_call(call, scope, func)?;
+            return Ok(());
+        }
+
         if ret.is_int_return() {
             if let Some(int_return) = self.get_int_return_value(ret) {
                 self.builder.build_return(Some(&int_return));
+                return Ok(());
             };
         }
         if ret.is_float_return() {
             if let Some(int_return) = self.gen_float_return_type(ret) {
                 self.builder.build_return(Some(&int_return));
+                return Ok(());
             };
         }
         if ret.is_array_return() {
+            todo!("As of right now arrays are not supported in return values");
             if let Some(int_return) = self.gen_arr_return_type(ret) {
                 self.builder.build_return(Some(&int_return));
+                return Ok(());
             };
         }
+
+        Err("function return type was not of any know return type".to_string())
+    }
+
+    pub(super) fn gen_return_from_call(
+        &self,
+        call: &'ctx FunctionCall,
+        scope: FunctionValue<'ctx>,
+        func: &'ctx Function,
+    ) -> Result<(), String> {
+        let return_value =
+            self.gen_named_function_call(call, scope, "return", &func.return_type, Some(func))?;
+        let Some(return_value) = return_value.try_as_basic_value().left() else {
+            return Err(format!(
+                "the return type of call to {} is not the same as that of the function",
+                call.call_to
+            ));
+        };
+        self.builder.build_return(Some(&return_value));
+        return Ok(());
     }
 }
