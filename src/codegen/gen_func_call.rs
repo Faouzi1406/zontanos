@@ -10,7 +10,7 @@ use inkwell::{
     types::{AnyTypeEnum, BasicTypeEnum, PointerType},
     values::{
         AnyValue, AsValueRef, BasicMetadataValueEnum, CallSiteValue, FunctionValue,
-        InstructionValue, PointerValue,
+        InstructionValue, PointerValue, AnyValueEnum,
     },
     AddressSpace,
 };
@@ -23,7 +23,7 @@ impl<'ctx> CodeGen<'ctx> {
         name: &str,
         expected_return: &MarkerTypes,
         func: Option<&'ctx Function>,
-    ) -> Result<CallSiteValue<'ctx>, String> {
+    ) -> Result<AnyValueEnum<'ctx>, String> {
         let arguments = &call.args;
         let params = &func.unwrap().params;
         let arguments = self.get_call_args(arguments, scope, Some(params))?;
@@ -39,7 +39,7 @@ impl<'ctx> CodeGen<'ctx> {
                     &call.call_to
                 ));
             }
-            return Ok(call_return);
+            return Ok(call_return.as_any_value_enum());
         };
 
         let return_value = self.gen_std_func(arguments, scope, Some(name), &call.call_to)?;
@@ -90,21 +90,10 @@ impl<'ctx> CodeGen<'ctx> {
                     value_vec.push(int_value.into());
                 }
                 VarTypes::Identifier(id, expected_type) => {
-                    let Some(block) = scope.get_first_basic_block() else {
-                        return Err(format!("Found a identifier argument {id} but couldn't access any scope therefore {id} can't exist within the current scope."));
-                    };
-                    if let Some(variable) = block.get_instruction_with_name(&id) {
-                        let value = self.value_from_instruction(variable);
-                        value_vec.push(value);
+                    if let Some(value) = self.get_value_from_id(scope, id, func_params) {
+                        value_vec.push(value.into());
                         continue;
                     };
-                    if let Some(param_index) = func_params.unwrap().iter().enumerate().find(|x| x.1.name == *id) {
-                        let Some(get_param) = scope.get_nth_param(param_index.0 as u32) else {
-                            return Err(format!("Found the paramater {id} in function paramaters but not in the scope paramters."));
-                        };
-                        value_vec.push(get_param.into());
-                        continue;
-                    }
                     return Err(format!("Could not find any identifier with the name {id}."));
                 }
                 VarTypes::Array { array, array_type } => {}
@@ -127,7 +116,8 @@ impl<'ctx> CodeGen<'ctx> {
                 BasicTypeEnum::IntType(_) => *with == MarkerTypes::I32,
                 BasicTypeEnum::FloatType(_) => *with == MarkerTypes::F32,
                 BasicTypeEnum::ArrayType(..) => todo!("Arrays as return types are not yet supported in the language"),
-                _ => unimplemented!("this type is not supported in the langaue and therefore shouldn't be able to be a return value"),
+                BasicTypeEnum::PointerType(_) => todo!("pointer types are not  yet supported"),
+                value => unimplemented!("this type is not supported in the langaue and therefore shouldn't be able to be a return value, {value}"),
             }
         } else {
             false

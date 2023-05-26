@@ -1,10 +1,10 @@
 use std::error::Error;
 use std::{unimplemented, unreachable};
 
-use inkwell::AddressSpace;
 use inkwell::basic_block::BasicBlock;
 use inkwell::types::{BasicMetadataTypeEnum, FunctionType};
-use inkwell::values::{AnyValue, FunctionValue};
+use inkwell::values::{AnyValue, FunctionValue, AnyValueEnum};
+use inkwell::AddressSpace;
 
 use crate::ast::function::Function;
 use crate::ast::function_call::FunctionCall;
@@ -37,8 +37,34 @@ impl<'ctx> CodeGen<'ctx> {
             MarkerTypes::Char => self.context.i8_type().fn_type(&params, false),
             MarkerTypes::String => self.context.i8_type().fn_type(&params, false),
             MarkerTypes::Identifier => self.context.void_type().fn_type(&params, false),
+            MarkerTypes::PointerI8 => self
+                .context
+                .i8_type()
+                .ptr_type(Default::default())
+                .fn_type(&params, false),
+            MarkerTypes::PointerU8 => self
+                .context
+                .i8_type()
+                .ptr_type(Default::default())
+                .fn_type(&params, false),
+            MarkerTypes::PointerChar => self
+                .context
+                .i8_type()
+                .ptr_type(Default::default())
+                .fn_type(&params, false),
+            MarkerTypes::PointerString => self
+                .context
+                .i8_type()
+                .ptr_type(Default::default())
+                .fn_type(&params, false),
+            MarkerTypes::PointerI32 => self
+                .context
+                .i32_type()
+                .ptr_type(Default::default())
+                .fn_type(&params, false),
             MarkerTypes::Void => self.context.void_type().fn_type(&params, false),
             MarkerTypes::None => self.context.void_type().fn_type(&params, false),
+            value => todo!("{:#?}", value),
         }
     }
 
@@ -47,7 +73,12 @@ impl<'ctx> CodeGen<'ctx> {
         for param in &function.params {
             match &param.paramater_type {
                 MarkerTypes::Array(_) => todo!("Add arrays for params"),
-                MarkerTypes::String => vec.push(self.context.i8_type().ptr_type(AddressSpace::default()).into()),
+                MarkerTypes::String => vec.push(
+                    self.context
+                        .i8_type()
+                        .ptr_type(AddressSpace::default())
+                        .into(),
+                ),
                 // This should be fine since the character is static thus conversion shouldn't
                 // cause any problems since those would be catched by the parser.
                 MarkerTypes::Char => vec.push(self.context.i8_type().into()),
@@ -75,6 +106,39 @@ impl<'ctx> CodeGen<'ctx> {
             return Ok(());
         }
 
+        if let VarTypes::Identifier(id, type_id) = &ret.0 {
+            if let Some(value) = self.get_value_from_id(scope, id, Some(&func.params)) {
+                if value.is_int_value() {
+                    self.builder.build_return(Some(&value.into_int_value()));
+                }
+                if value.is_array_value() {
+                    self.builder.build_return(Some(&value.into_array_value()));
+                }
+                if value.is_float_value() {
+                    self.builder.build_return(Some(&value.into_float_value()));
+                }
+                if value.is_pointer_value() {
+                    let ptr = value.into_pointer_value();
+                    let value = self.load_pointer(ptr, ptr.get_type());
+
+                    if value.is_pointer_value() {
+                        self.builder.build_return(Some(&value.into_pointer_value()));
+                    }
+                    if value.is_int_value() {
+                        self.builder.build_return(Some(&value.into_int_value()));
+                    }
+                    if value.is_array_value() {
+                        self.builder.build_return(Some(&value.into_array_value()));
+                    }
+                }
+                return Ok(());
+            };
+            return Err(format!(
+                "No identifier with the name {id} found in function {}",
+                func.name
+            ));
+        }
+
         if ret.is_int_return() {
             if let Some(int_return) = self.get_int_return_value(ret) {
                 self.builder.build_return(Some(&int_return));
@@ -82,14 +146,13 @@ impl<'ctx> CodeGen<'ctx> {
             };
         }
         if ret.is_float_return() {
-            if let Some(int_return) = self.gen_float_return_type(ret) {
+            if let Some(int_return) = self.gen_float_return_value(ret) {
                 self.builder.build_return(Some(&int_return));
                 return Ok(());
             };
         }
         if ret.is_array_return() {
-            todo!("As of right now arrays are not supported in return values");
-            if let Some(int_return) = self.gen_arr_return_type(ret) {
+            if let Some(int_return) = self.gen_arr_return_value(ret) {
                 self.builder.build_return(Some(&int_return));
                 return Ok(());
             };
@@ -106,13 +169,13 @@ impl<'ctx> CodeGen<'ctx> {
     ) -> Result<(), String> {
         let return_value =
             self.gen_named_function_call(call, scope, "return", &func.return_type, Some(func))?;
-        let Some(return_value) = return_value.try_as_basic_value().left() else {
-            return Err(format!(
-                "the return type of call to {} is not the same as that of the function",
-                call.call_to
-            ));
+        let value = match return_value {
+            AnyValueEnum::IntValue(value) => self.builder.build_return(Some(&value)),
+            AnyValueEnum::FloatValue(value) => self.builder.build_return(Some(&value)),
+            AnyValueEnum::PointerValue(value) => self.builder.build_return(Some(&value)),
+            value => todo!("Support the call return type of {value}")
         };
-        self.builder.build_return(Some(&return_value));
+        
         return Ok(());
     }
 }

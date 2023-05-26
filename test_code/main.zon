@@ -1,9 +1,10 @@
 fn other(string x, i32 value) i32 {
 	let some_print: i32 = printf("Other just got called %s %d %c",  x, value,  '\n')
-	return 25;
+	return add(value, 20)
 }
 
 fn main() i32 {
-	let some_value: i32 = other("hello wolrd!", 10)
-	return other("testing", 20);
+	let some_value: i32 = other("hello wolrd!", 30)
+	let this: i32 = printf("some_value = %d %c", some_value, '\n')
+	return other("testing", 20)
 } 

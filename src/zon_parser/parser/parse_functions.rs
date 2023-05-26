@@ -1,4 +1,4 @@
-use std::format;
+use std::{format, str::FromStr};
 
 use crate::ast::{
     function::{Function, Paramater},
@@ -129,6 +129,15 @@ impl FunctionParser for Parser {
             return Err(ParseErrors::ExpectedNext(line).to_string())
         };
         match return_type.token_type {
+            Tokens::Pointer => {
+                let Some(return_type) = self.next() else {
+                    return Err(ParseErrors::ExpectedNext(line).to_string())
+                };
+                let Tokens::Kw(value) = return_type.token_type else {
+                    return Err("Expected a return of pointer:T but value after ^ wasn't a type".to_string());
+                };
+                return Ok(MarkerTypes::from_str(&format!("^{}", &value.to_string()))?);
+            }
             Tokens::Kw(keyword) => Ok(MarkerTypes::from(keyword)),
             token => {
                 return Err(format!(

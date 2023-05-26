@@ -35,7 +35,7 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    pub(super) fn gen_float_return_type(&self, return_value: &Return) -> Option<impl BasicValue> {
+    pub(super) fn gen_float_return_value(&self, return_value: &Return) -> Option<impl BasicValue> {
         match return_value.0 {
             VarTypes::F32(float_value) => {
                 let f32 = self.context.f32_type();
@@ -46,7 +46,7 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    pub(super) fn gen_arr_return_type(&self, return_value: &'ctx Return) -> Option<impl BasicValue> {
+    pub(super) fn gen_arr_return_value(&self, return_value: &'ctx Return) -> Option<impl BasicValue> {
         match &return_value.0 {
             VarTypes::Array { array, array_type } => match array_type {
                 MarkerTypes::I8 => {

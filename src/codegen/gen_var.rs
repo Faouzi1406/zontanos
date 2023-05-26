@@ -2,13 +2,14 @@ use std::{error::Error, println};
 
 use inkwell::{
     types::BasicType,
-    values::{ArrayValue, BasicValue, FunctionValue, IntValue},
+    values::{ArrayValue, BasicMetadataValueEnum, BasicValue, FunctionValue, IntValue},
 };
 
 use super::CodeGen;
 use crate::ast::{
+    function::{Function, Paramater},
     types::{MarkerTypes, VarTypes},
-    variable::{VarData, Variable}, function::Function,
+    variable::{VarData, Variable},
 };
 
 impl<'ctx> CodeGen<'ctx> {
@@ -16,7 +17,7 @@ impl<'ctx> CodeGen<'ctx> {
         &self,
         variable: &'ctx Variable,
         scope: FunctionValue<'ctx>,
-        func: Option<&'ctx Function>
+        func: Option<&'ctx Function>,
     ) -> Result<(), String> {
         let Some(variable_name) = variable.get_name() else {
             return Err(Self::variable_no_name(variable.var_line));
@@ -56,7 +57,8 @@ impl<'ctx> CodeGen<'ctx> {
                 Ok(())
             }
             VarTypes::FunctionCall(call, expected_type) => {
-                let gen_func_call = self.gen_named_function_call(call, scope, variable_name, &expected_type, func)?;
+                let gen_func_call =
+                    self.gen_named_function_call(call, scope, variable_name, &expected_type, func)?;
                 Ok(())
             }
             _ => unimplemented!(),
@@ -76,6 +78,74 @@ impl<'ctx> CodeGen<'ctx> {
     ) {
         let ptr = self.builder.build_alloca(type_value, &var_name);
         self.builder.build_store(ptr, value);
+    }
+
+    pub(super) fn get_value_from_id(
+        &self,
+        scope: FunctionValue<'ctx>,
+        id: &str,
+        func_params: Option<&'ctx Vec<Paramater>>,
+    ) -> Option<BasicMetadataValueEnum<'ctx>> {
+        let Some(block) = scope.get_first_basic_block() else {
+            return None;
+        };
+
+        if let Some(variable) = block.get_instruction_with_name(&id) {
+            let value = self.value_from_instruction(variable);
+            return Some(value);
+        };
+
+        if let Some(param_index) = func_params
+            .unwrap()
+            .iter()
+            .enumerate()
+            .find(|x| x.1.name == *id)
+        {
+            let Some(get_param) = scope.get_nth_param(param_index.0 as u32) else {
+                return None;
+            };
+            return Some(get_param.into());
+        }
+        None
+    }
+
+    /// Takes in a int BasicMetadataValueEnum; you have to check if it's and int value before you
+    /// use this.
+    pub(super) fn gen_basic_value_from_meta_value_int(
+        &self,
+        value: BasicMetadataValueEnum<'ctx>,
+    ) -> Option<impl BasicValue> {
+        assert!(value.is_int_value());
+        match value {
+            BasicMetadataValueEnum::IntValue(_) => Some(value.into_int_value()),
+            _ => None,
+        }
+    }
+
+    /// Takes in a float BasicMetadataValueEnum; you have to check if it's and float value before you
+    /// use this.
+    pub(super) fn gen_basic_value_from_meta_value_float(
+        &self,
+        value: BasicMetadataValueEnum<'ctx>,
+    ) -> Option<impl BasicValue> {
+        assert!(value.is_float_value());
+        match value {
+            BasicMetadataValueEnum::FloatValue(_) => Some(value.into_float_value()),
+            _ => None,
+        }
+    }
+
+    /// Takes in a array BasicMetadataValueEnum; you have to check if it's and array value before you
+    /// use this.
+    pub(super) fn gen_basic_value_from_meta_value_array(
+        &self,
+        value: BasicMetadataValueEnum<'ctx>,
+    ) -> Option<impl BasicValue> {
+        assert!(value.is_array_value());
+        match value {
+            BasicMetadataValueEnum::ArrayValue(_) => Some(value.into_array_value()),
+            _ => None,
+        }
     }
 
     /// Error message if a variable with no name is found during parsing

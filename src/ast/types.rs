@@ -49,6 +49,20 @@ pub enum MarkerTypes {
     U8,
     /// "i8"
     I8,
+    /// "string"
+    PointerString,
+    /// "identifier"
+    PointerIdentifier,
+    /// "char"
+    PointerChar,
+    /// "i32"
+    PointerI32,
+    /// "f32"
+    PointerF32,
+    /// "u8"
+    PointerU8,
+    /// "i8"
+    PointerI8,
 }
 
 impl ToString for MarkerTypes {
@@ -64,6 +78,13 @@ impl ToString for MarkerTypes {
             MarkerTypes::U8 => "u8".into(),
             MarkerTypes::I8 => "i8".into(),
             MarkerTypes::Array(arr) => format!("array:{}", arr.to_string()),
+            MarkerTypes::PointerU8 => "^u8".into(),
+            MarkerTypes::PointerI8 => ",^i8".into(),
+            MarkerTypes::PointerI32 => "^i32".into(),
+            MarkerTypes::PointerF32 => "^f32".into(),
+            MarkerTypes::PointerChar => "^char".into(),
+            MarkerTypes::PointerString => "^string".into(),
+            MarkerTypes::PointerIdentifier => "^identifier".into(),
         }
     }
 }
@@ -94,6 +115,13 @@ impl FromStr for MarkerTypes {
             "f32" => Ok(MarkerTypes::F32),
             "u8" => Ok(MarkerTypes::U8),
             "i8" => Ok(MarkerTypes::I8),
+            "^string" => Ok(MarkerTypes::PointerString),
+            "^char" => Ok(MarkerTypes::PointerChar),
+            "^identifier" => Ok(MarkerTypes::PointerIdentifier),
+            "^i32" => Ok(MarkerTypes::PointerI32),
+            "^f32" => Ok(MarkerTypes::PointerF32),
+            "^u8" => Ok(MarkerTypes::PointerU8),
+            "^i8" => Ok(MarkerTypes::PointerI8),
             value => Err(format!("Type {value} is not a type")),
         }
     }
