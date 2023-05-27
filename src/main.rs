@@ -2,6 +2,7 @@ mod all_tests;
 mod ast;
 mod codegen;
 mod zon_parser;
+mod parser_v2;
 
 use crate::{
     codegen::CodeGen,

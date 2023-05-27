@@ -2,6 +2,8 @@
 
 use std::assert_eq;
 
+use zontanos::parser_v2::ast::Types;
+
 use crate::{
     ast::{
         logic::LogicalStatements,
@@ -186,4 +188,90 @@ fn parsing_statements() {
         }
         statement => panic!("expected first statement to be a Or but it was a {statement:#?}"),
     };
+}
+
+#[test]
+fn parse_single_type() {
+    use crate::parser_v2::parser::Parser;
+
+    let statement = "array";
+    let mut tokenize = Tokenizer::new(statement);
+    let tokenize = Tokenizer::lex(&mut tokenize);
+
+    let mut parser = Parser::new(tokenize);
+    let tokens = parser.parse_type_expr().unwrap();
+    assert_eq!(tokens.r#type, crate::parser_v2::ast::Types::Array);
+}
+
+#[test]
+fn parsing_generics() {
+    use crate::parser_v2::parser::Parser;
+
+    let statement = "array<i32, string, i32<string, i32<string>>, i32>";
+    let mut tokenize = Tokenizer::new(statement);
+    let tokenize = Tokenizer::lex(&mut tokenize);
+
+    let mut parser = Parser::new(tokenize);
+    let tokens = parser.parse_type_expr().unwrap();
+    assert_eq!(tokens.r#type, crate::parser_v2::ast::Types::Array);
+
+    let generic_1 = tokens.generics.get(0).unwrap();
+    assert_eq!(generic_1.r#type, crate::parser_v2::ast::Types::I32);
+
+    let generic_2 = tokens.generics.get(1).unwrap();
+    assert_eq!(generic_2.r#type, crate::parser_v2::ast::Types::String);
+
+    let generic_2 = tokens.generics.get(2).unwrap();
+    assert_eq!(generic_2.r#type, crate::parser_v2::ast::Types::I32);
+
+    let generic_in_generic2 = generic_2.generics.get(0).unwrap();
+    assert_eq!(
+        generic_in_generic2.r#type,
+        crate::parser_v2::ast::Types::String
+    );
+
+    let generic_in_generic2 = generic_2.generics.get(1).unwrap();
+    assert_eq!(
+        generic_in_generic2.r#type,
+        crate::parser_v2::ast::Types::I32
+    );
+}
+
+#[should_panic(expected = "[Parse Error] Expected a end to generics '>' on line 0")]
+#[test]
+fn parsing_generics_no_end() {
+    use crate::parser_v2::parser::Parser;
+
+    let generics = "array<i32, string, i32<string, i32<string>>, i32"; // end of the statement doesn't have a ending '>'
+    let mut tokenize = Tokenizer::new(generics);
+    let tokenize = Tokenizer::lex(&mut tokenize);
+
+    let mut parser = Parser::new(tokenize);
+    let tokens = parser.parse_type_expr();
+    panic!("{}", tokens.err().unwrap())
+}
+
+#[test]
+fn parsing_ident() {
+    use crate::parser_v2::parser::Parser;
+
+    let ident_str = "some";
+    let mut tokens = Lexer::new(ident_str);
+    let ident = Tokenizer::lex(&mut tokens);
+    let mut parser = Parser::new(ident);
+    let parse = parser.parse_current_ident_expr().unwrap();
+    assert_eq!(parse.name, "some")
+}
+
+#[should_panic]
+#[test]
+fn parsing_keyword_not_ident() {
+    use crate::parser_v2::parser::Parser;
+
+    let ident_str = "let";
+    let mut tokens = Lexer::new(ident_str);
+    let ident = Tokenizer::lex(&mut tokens);
+    let mut parser = Parser::new(ident);
+    let parse = parser.parse_current_ident_expr().unwrap();
+    assert_eq!(parse.name, "let")
 }

@@ -1,6 +1,8 @@
 //! The Abstract Syntax Tree structure of Zontanos
 #![allow(unused)]
 
+pub mod types_from_str;
+
 pub struct Ast {
     pub r#type: NodeTypes,
     pub body: Vec<Node>,
@@ -55,6 +57,7 @@ pub struct Assignment {
 ///
 /// **r#type** the type it is
 /// **generics** all of the generic values if any, will be empty if there are none
+#[derive(Clone, Debug)]
 pub struct Type {
     pub r#type: Types,
     pub generics: Vec<Type>,
@@ -64,12 +67,14 @@ pub struct Type {
 /// Identifier of a value
 ///
 /// **r#name** the name of that value
+#[derive(Debug)]
 pub struct Ident {
     pub name: String,
 }
 
 /// [`Types`]
 /// All current types in a language
+#[derive(Clone, PartialEq, Debug)]
 pub enum Types {
     I8,
     U8,
