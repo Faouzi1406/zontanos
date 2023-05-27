@@ -11,3 +11,4 @@ pub mod zon_parser;
 /// The main Ast of the language. It contains the structure of the Ast(Abstract syntax tree) that
 /// gets generated after parsing.
 pub mod ast;
+mod parser_v2;
