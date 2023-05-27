@@ -420,14 +420,15 @@ impl Tokenize for Tokenizer {
                     }
                 }
             }
+            return Token::new(line, token_type, &nums);
         };
 
         Token::new(
             line,
             Tokens::InvalidToken(TokenErrorMessages::TokenInvalid(
-                "Got a call to token_less but there was no previous character present.".to_string(),
+                "Got a call to num but there was no previous number present.".to_string(),
             )),
-            "no prev token",
+            "no prev number",
         )
     }
 

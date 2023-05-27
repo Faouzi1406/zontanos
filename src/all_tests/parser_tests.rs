@@ -1,8 +1,5 @@
 //! This contains all the tests for the parser.
-
 use std::assert_eq;
-
-use zontanos::parser_v2::ast::Types;
 
 use crate::{
     ast::{
@@ -12,6 +9,7 @@ use crate::{
         Expr,
     },
     panic_test,
+    parser_v2::ast::TypeValues,
     zon_parser::{
         lexer::{Lexer, Operator, Tokenizer},
         parser::parser::Parser,
@@ -274,4 +272,68 @@ fn parsing_keyword_not_ident() {
     let mut parser = Parser::new(ident);
     let parse = parser.parse_current_ident_expr().unwrap();
     assert_eq!(parse.name, "let")
+}
+
+#[test]
+fn parsing_values_i8() {
+    use crate::parser_v2::parser::Parser;
+    let ident_str = "20";
+    let mut tokens = Lexer::new(ident_str);
+    let ident = Tokenizer::lex(&mut tokens);
+    let mut parser = Parser::new(ident);
+    let parse = parser
+        .parse_value_expr(crate::parser_v2::ast::Types::I8)
+        .unwrap();
+    assert_eq!(parse.r#type, TypeValues::I8(20))
+}
+
+#[test]
+fn parsing_values_i32() {
+    use crate::parser_v2::parser::Parser;
+    let ident_str = "20";
+    let mut tokens = Lexer::new(ident_str);
+    let ident = Tokenizer::lex(&mut tokens);
+    let mut parser = Parser::new(ident);
+    let parse = parser
+        .parse_value_expr(crate::parser_v2::ast::Types::I32)
+        .unwrap();
+    assert_eq!(parse.r#type, TypeValues::I32(20))
+}
+
+#[test]
+fn parsing_values_f32() {
+    use crate::parser_v2::parser::Parser;
+    let ident_str = "20.";
+    let mut tokens = Lexer::new(ident_str);
+    let ident = Tokenizer::lex(&mut tokens);
+    let mut parser = Parser::new(ident);
+    let parse = parser
+        .parse_value_expr(crate::parser_v2::ast::Types::F32)
+        .unwrap();
+    assert_eq!(parse.r#type, TypeValues::F32(20.))
+}
+
+#[test]
+fn parsing_values_string() {
+    use crate::parser_v2::parser::Parser;
+    let ident_str = "\"hello world!\"";
+    let mut tokens = Lexer::new(ident_str);
+    let ident = Tokenizer::lex(&mut tokens);
+    let mut parser = Parser::new(ident);
+    let parse = parser
+        .parse_value_expr(crate::parser_v2::ast::Types::String)
+        .unwrap();
+    assert_eq!(parse.r#type, TypeValues::String("hello world!".into()))
+}
+
+#[test]
+fn parsing_let_expr() {
+    use crate::parser_v2::parser::Parser;
+    let ident_str = "let test:string = \"testing this\"";
+    let mut tokens = Lexer::new(ident_str);
+    let var = Tokenizer::lex(&mut tokens);
+    println!("{:#?}", var);
+    let mut parser = Parser::new(var);
+    let parse = parser.parse_let_expr();
+    println!("{:#?}", parse);
 }

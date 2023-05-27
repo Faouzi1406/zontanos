@@ -2,8 +2,11 @@
 //! Converts the tokens into a Abstract Syntax Tree
 #![allow(dead_code)]
 
-use super::ast::{Ast, Ident, Type, Types, Variable, Node};
-use crate::zon_parser::lexer::{Keywords, Operator, Token, Tokens};
+use super::ast::{Ast, Ident, Node, Type, Types, Value, Variable};
+use crate::{
+    parser_v2::ast::{NodeTypes, TypeValues},
+    zon_parser::lexer::{Keywords, Operator, Token, Tokens},
+};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -46,16 +49,41 @@ impl Parser {
     }
 
     pub fn parse_let_expr(&mut self) -> ParseResult<Node> {
-        assert!(self.assert_current_token().token_type == Tokens::Kw(Keywords::Let));
-        let ident = self.parse_next_ident_expr();
+        let current_token = self.assert_current_token();
+        assert!(current_token.token_type == Tokens::Kw(Keywords::Let));
+
+        let ident = self.parse_next_ident_expr()?;
         if !self.consume_if_next(Tokens::Colon) {
             return Err(self.expected_type_seperator());
         }
+
+        let _type = self.next();
         let var_type = self.parse_type_expr()?;
-        let node = Node {
-            //node_type: 
+        let mut node = Node {
+            node_type: NodeTypes::Variable(Variable {
+                ident,
+                var_type: var_type.clone(),
+            }),
+            left: None,
+            right: None,
+            line: current_token.line,
         };
-        todo!()
+
+        if self.consume_if_next(Tokens::Op(Operator::Eq)) {
+            node.left = Some(Box::from(Node::new(
+                NodeTypes::Operator(Operator::Eq),
+                current_token.line,
+            )));
+            let _value = self.next();
+            let variable_value = self.parse_value_expr(var_type.r#type)?;
+            node.right = Some(Box::from(Node::new(
+                NodeTypes::Value(variable_value),
+                current_token.line,
+            )));
+            Ok(node)
+        } else {
+            Err(self.expected_assign_token())
+        }
     }
 
     pub fn parse_next_ident_expr(&mut self) -> ParseResult<Ident> {
@@ -64,6 +92,32 @@ impl Parser {
             return Err(self.expected_ident());
         };
         Ok(Ident { name: ident.value })
+    }
+
+    pub fn parse_value_expr(&mut self, expected_type: Types) -> ParseResult<Value> {
+        let mut value = Value {
+            r#type: TypeValues::None,
+        };
+        let Some(value_expr) = self.current_token() else {
+            return Err(self.invalid_expected_type("value", "none"));
+        };
+        match value_expr.token_type {
+            Tokens::Number => {
+                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                return Ok(value);
+            }
+            Tokens::FloatNumber => {
+                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                return Ok(value);
+            }
+            Tokens::String => {
+                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                return Ok(value);
+            }
+            Tokens::Identifier => {}
+            _ => return Err(self.invalid_token_in_expr("value", "value")),
+        };
+        Ok(value)
     }
 
     pub fn parse_current_ident_expr(&mut self) -> ParseResult<Ident> {
@@ -169,6 +223,15 @@ impl Parser {
         msg
     }
 
+    pub fn expected_assign_token(&mut self) -> String {
+        let current = self.assert_current_token();
+        let msg = format!(
+            "[Parse Error] Expected assignment token on line {}",
+            current.line
+        );
+        msg
+    }
+
     pub fn expected_ident(&mut self) -> String {
         let current = self.assert_current_token();
         let msg = format!(
@@ -184,6 +247,12 @@ impl Parser {
             "[Parse Error] Expected a type seperator ':' on line {} for {}",
             current.line, current.value
         );
+        msg
+    }
+
+    pub fn invalid_expected_type(&mut self, type_expected: &str, value_received: &str) -> String {
+        let msg =
+            format!("[Parse Error] Expected a type of {type_expected} but got {value_received}",);
         msg
     }
 }
