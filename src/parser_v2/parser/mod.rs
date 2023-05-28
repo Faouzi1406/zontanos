@@ -20,27 +20,43 @@ impl Parser {
         Self { tokens, pos: 0 }
     }
 
+    pub fn walk_back(&mut self, n: usize) {
+        assert!(self.pos > 0);
+        self.pos -= n;
+    }
+
     pub fn parse(&mut self) -> ParseResult<Ast> {
+        let mut ast = Ast {
+            body: Vec::new(),
+            r#type: NodeTypes::Program,
+        };
         while let Some(token) = self.next() {
             match token.token_type {
-                _ => todo!(),
+                Tokens::Kw(Keywords::Let) => {
+                    // We found the let token, but parse_let_expr expects the
+                    // next token to be a let token so we walk one back
+                    self.walk_back(1);
+                    let let_expr = self.parse_let_expr()?;
+                    ast.body.push(let_expr);
+                }
+                kw => todo!("found {kw:#?}"),
             }
         }
-        todo!()
+        Ok(ast)
     }
 
-    pub fn current_token(&mut self) -> Option<&Token> {
-        self.tokens.get(self.pos)
+    pub fn prev_token(&mut self) -> Option<&Token> {
+        self.tokens.get(self.pos - 1)
     }
 
-    pub fn assert_current_token(&mut self) -> Token {
-        let token = self.current_token();
+    pub fn assert_prev_token(&mut self) -> Token {
+        let token = self.prev_token();
         assert!(token.is_some());
         token.unwrap().clone()
     }
 
     pub fn consume_if_next(&mut self, next: Tokens) -> bool {
-        let Some(token) = self.tokens.get(self.pos + 1) else {return false};
+        let Some(token) = self.tokens.get(self.pos) else {return false};
         if token.token_type == next {
             self.next();
             return true;
@@ -49,15 +65,16 @@ impl Parser {
     }
 
     pub fn parse_let_expr(&mut self) -> ParseResult<Node> {
-        let current_token = self.assert_current_token();
-        assert!(current_token.token_type == Tokens::Kw(Keywords::Let));
+        let Some(prev_token) = self.next() else {
+            return Err(self.invalid_expected_type("variable", "none"))
+        };
+        assert!(prev_token.token_type == Tokens::Kw(Keywords::Let));
 
         let ident = self.parse_next_ident_expr()?;
         if !self.consume_if_next(Tokens::Colon) {
             return Err(self.expected_type_seperator());
         }
 
-        let _type = self.next();
         let var_type = self.parse_type_expr()?;
         let mut node = Node {
             node_type: NodeTypes::Variable(Variable {
@@ -66,19 +83,18 @@ impl Parser {
             }),
             left: None,
             right: None,
-            line: current_token.line,
+            line: prev_token.line,
         };
 
         if self.consume_if_next(Tokens::Op(Operator::Eq)) {
             node.left = Some(Box::from(Node::new(
                 NodeTypes::Operator(Operator::Eq),
-                current_token.line,
+                prev_token.line,
             )));
-            let _value = self.next();
             let variable_value = self.parse_value_expr(var_type.r#type)?;
             node.right = Some(Box::from(Node::new(
                 NodeTypes::Value(variable_value),
-                current_token.line,
+                prev_token.line,
             )));
             Ok(node)
         } else {
@@ -94,11 +110,14 @@ impl Parser {
         Ok(Ident { name: ident.value })
     }
 
+    /// Expects the next token to be value
+    /// Parses until a end to the value is found depending on the first token;
+    /// For example a FunctionCall value will get parsed until the end of the function call ')'
     pub fn parse_value_expr(&mut self, expected_type: Types) -> ParseResult<Value> {
         let mut value = Value {
             r#type: TypeValues::None,
         };
-        let Some(value_expr) = self.current_token() else {
+        let Some(value_expr) = self.next() else {
             return Err(self.invalid_expected_type("value", "none"));
         };
         match value_expr.token_type {
@@ -120,8 +139,9 @@ impl Parser {
         Ok(value)
     }
 
+    /// Expects the next token to be a ident
     pub fn parse_current_ident_expr(&mut self) -> ParseResult<Ident> {
-        let Some(ident) = self.current_token() else {return Err(self.expected_ident())};
+        let Some(ident) = self.next() else {return Err(self.expected_ident())};
         if ident.token_type != Tokens::Identifier {
             return Err(self.expected_ident());
         };
@@ -130,8 +150,10 @@ impl Parser {
         })
     }
 
+    /// Expects the next stream of tokens to be a type
+    /// Parses up intil the '>' en of generics, or end of single type
     pub fn parse_type_expr(&mut self) -> ParseResult<Type> {
-        let Some(base_type) = self.current_token() else { return Err(self.expected_type()) };
+        let Some(base_type) = self.next() else { return Err(self.expected_type()) };
         let Tokens::Kw(_) = base_type.token_type else {return Err(self.expected_type())};
         let mut base_type = Type {
             r#type: Types::from(base_type.value.as_str()),
@@ -187,7 +209,7 @@ impl Parser {
     }
 
     pub fn expected_type(&mut self) -> String {
-        let current = self.assert_current_token();
+        let current = self.assert_prev_token();
         let msg = format!(
             "[Parse Error] Expected a type after ':' on line {}",
             current.line
@@ -197,7 +219,7 @@ impl Parser {
 
     pub fn expected_end_expr(&mut self, to: &str, end: &str) -> String {
         self.pos -= 1;
-        let current = self.assert_current_token();
+        let current = self.assert_prev_token();
         let msg = format!(
             "[Parse Error] Expected a end to {to} '{end}' on line {}",
             current.line
@@ -206,7 +228,7 @@ impl Parser {
     }
 
     pub fn comma_without_type_generic(&mut self) -> String {
-        let current = self.assert_current_token();
+        let current = self.assert_prev_token();
         let msg = format!(
             "[Parse Error] Expected a comma after a type <T, T> on line {}",
             current.line
@@ -215,7 +237,7 @@ impl Parser {
     }
 
     pub fn invalid_token_in_expr(&mut self, expr: &str, expected: &str) -> String {
-        let current = self.assert_current_token();
+        let current = self.assert_prev_token();
         let msg = format!(
             "[Parse Error] Found a invalid token while parsing {expr} on line {}, expected {expected} got {}",
             current.line, current.value
@@ -224,7 +246,7 @@ impl Parser {
     }
 
     pub fn expected_assign_token(&mut self) -> String {
-        let current = self.assert_current_token();
+        let current = self.assert_prev_token();
         let msg = format!(
             "[Parse Error] Expected assignment token on line {}",
             current.line
@@ -233,7 +255,7 @@ impl Parser {
     }
 
     pub fn expected_ident(&mut self) -> String {
-        let current = self.assert_current_token();
+        let current = self.assert_prev_token();
         let msg = format!(
             "[Parse Error] Expected a variable identifier on line {}",
             current.line
@@ -242,7 +264,7 @@ impl Parser {
     }
 
     pub fn expected_type_seperator(&mut self) -> String {
-        let current = self.assert_current_token();
+        let current = self.assert_prev_token();
         let msg = format!(
             "[Parse Error] Expected a type seperator ':' on line {} for {}",
             current.line, current.value
@@ -260,8 +282,8 @@ impl Parser {
 impl Iterator for Parser {
     type Item = Token;
     fn next(&mut self) -> Option<Token> {
-        self.pos += 1;
         let pos = self.tokens.get(self.pos)?;
+        self.pos += 1;
         return Some(pos.clone());
     }
 }

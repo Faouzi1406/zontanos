@@ -9,7 +9,7 @@ use crate::{
         Expr,
     },
     panic_test,
-    parser_v2::ast::TypeValues,
+    parser_v2::ast::{NodeTypes, TypeValues, Types},
     zon_parser::{
         lexer::{Lexer, Operator, Tokenizer},
         parser::parser::Parser,
@@ -253,8 +253,8 @@ fn parsing_generics_no_end() {
 fn parsing_ident() {
     use crate::parser_v2::parser::Parser;
 
-    let ident_str = "some";
-    let mut tokens = Lexer::new(ident_str);
+    let ident = "some";
+    let mut tokens = Lexer::new(ident);
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser.parse_current_ident_expr().unwrap();
@@ -266,8 +266,8 @@ fn parsing_ident() {
 fn parsing_keyword_not_ident() {
     use crate::parser_v2::parser::Parser;
 
-    let ident_str = "let";
-    let mut tokens = Lexer::new(ident_str);
+    let kw = "let";
+    let mut tokens = Lexer::new(kw);
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser.parse_current_ident_expr().unwrap();
@@ -277,8 +277,8 @@ fn parsing_keyword_not_ident() {
 #[test]
 fn parsing_values_i8() {
     use crate::parser_v2::parser::Parser;
-    let ident_str = "20";
-    let mut tokens = Lexer::new(ident_str);
+    let num = "20";
+    let mut tokens = Lexer::new(num);
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
@@ -290,8 +290,8 @@ fn parsing_values_i8() {
 #[test]
 fn parsing_values_i32() {
     use crate::parser_v2::parser::Parser;
-    let ident_str = "20";
-    let mut tokens = Lexer::new(ident_str);
+    let num = "20";
+    let mut tokens = Lexer::new(num);
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
@@ -303,8 +303,8 @@ fn parsing_values_i32() {
 #[test]
 fn parsing_values_f32() {
     use crate::parser_v2::parser::Parser;
-    let ident_str = "20.";
-    let mut tokens = Lexer::new(ident_str);
+    let float = "20.";
+    let mut tokens = Lexer::new(float);
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
@@ -316,8 +316,8 @@ fn parsing_values_f32() {
 #[test]
 fn parsing_values_string() {
     use crate::parser_v2::parser::Parser;
-    let ident_str = "\"hello world!\"";
-    let mut tokens = Lexer::new(ident_str);
+    let let_expr = "\"hello world!\"";
+    let mut tokens = Lexer::new(let_expr);
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
@@ -329,11 +329,64 @@ fn parsing_values_string() {
 #[test]
 fn parsing_let_expr() {
     use crate::parser_v2::parser::Parser;
-    let ident_str = "let test:string = \"testing this\"";
-    let mut tokens = Lexer::new(ident_str);
+    let let_expr = "let test:string = \"testing this\"";
+    let mut tokens = Lexer::new(let_expr);
     let var = Tokenizer::lex(&mut tokens);
-    println!("{:#?}", var);
+    //println!("{:#?}", var);
     let mut parser = Parser::new(var);
-    let parse = parser.parse_let_expr();
-    println!("{:#?}", parse);
+    let parse = parser.parse_let_expr().unwrap();
+    let NodeTypes::Variable(var) = parse.node_type else {
+        panic!("Parsing let expr expected the type of node to be a variable")
+    };
+    assert_eq!(var.ident.name, "test");
+    assert_eq!(var.var_type.r#type, Types::String);
+}
+
+#[test]
+fn parsing_let_exprs() {
+    use crate::parser_v2::parser::Parser;
+    let ident_str = "let test:string = \"testing this\" 
+        let other:string = \"Hello world!\"";
+    let mut tokens = Lexer::new(ident_str);
+    let var = Tokenizer::lex(&mut tokens); //     println!("tokens {:#?}", var);
+    let mut parser = Parser::new(var);
+    let parse = parser.parse().unwrap();
+
+    let var1 = parse.body.get(0).unwrap();
+    let NodeTypes::Variable(var) = &var1.node_type else {
+        panic!("Parsing let exprs expected the type of node to be a variable")
+    };
+    assert_eq!(var.ident.name, "test");
+    assert_eq!(var.var_type.r#type, Types::String);
+
+    let left = var1.left.as_ref().unwrap();
+    let NodeTypes::Operator(op) = &left.node_type else {
+        panic!("Parsing left exprs expected the type of left node to be a operator")
+    };
+    assert_eq!(op, &Operator::Eq);
+
+    let right = var1.right.as_ref().unwrap();
+    let NodeTypes::Value(op) = &right.node_type else {
+        panic!("Parsing right exprs expected the type of right node to be a operator")
+    };
+    assert_eq!(op.r#type, TypeValues::String("testing this".into()));
+
+    let var2 = parse.body.get(1).unwrap();
+    let NodeTypes::Variable(var) = &var2.node_type else {
+        panic!("Parsing let exprs expected the type of node to be a variable")
+    };
+    assert_eq!(var.ident.name, "other");
+    assert_eq!(var.var_type.r#type, Types::String);
+
+    let left = var2.left.as_ref().unwrap();
+    let NodeTypes::Operator(op) = &left.node_type else {
+        panic!("Parsing left exprs expected the type of left node to be a operator")
+    };
+    assert_eq!(op, &Operator::Eq);
+
+    let right = var2.right.as_ref().unwrap();
+    let NodeTypes::Value(op) = &right.node_type else {
+        panic!("Parsing right exprs expected the type of right node to be a operator")
+    };
+    assert_eq!(op.r#type, TypeValues::String("Hello world!".into()));
 }

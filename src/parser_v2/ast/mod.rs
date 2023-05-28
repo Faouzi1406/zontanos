@@ -6,6 +6,7 @@ use crate::zon_parser::lexer::Operator;
 pub mod types_from_str;
 pub mod types_match;
 
+#[derive(Debug)]
 pub struct Ast {
     pub r#type: NodeTypes,
     pub body: Vec<Node>,
