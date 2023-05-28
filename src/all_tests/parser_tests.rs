@@ -9,7 +9,7 @@ use crate::{
         Expr,
     },
     panic_test,
-    parser_v2::ast::{NodeTypes, TypeValues, Types},
+    parser_v2::ast::{NodeTypes, Type, TypeValues, Types},
     zon_parser::{
         lexer::{Lexer, Operator, Tokenizer},
         parser::parser::Parser,
@@ -257,7 +257,7 @@ fn parsing_ident() {
     let mut tokens = Lexer::new(ident);
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
-    let parse = parser.parse_current_ident_expr().unwrap();
+    let parse = parser.parse_next_ident_expr().unwrap();
     assert_eq!(parse.name, "some")
 }
 
@@ -270,7 +270,7 @@ fn parsing_keyword_not_ident() {
     let mut tokens = Lexer::new(kw);
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
-    let parse = parser.parse_current_ident_expr().unwrap();
+    let parse = parser.parse_next_ident_expr().unwrap();
     assert_eq!(parse.name, "let")
 }
 
@@ -282,7 +282,10 @@ fn parsing_values_i8() {
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
-        .parse_value_expr(crate::parser_v2::ast::Types::I8)
+        .parse_value_expr(Type {
+            r#type: Types::I8,
+            generics: Vec::new(),
+        })
         .unwrap();
     assert_eq!(parse.r#type, TypeValues::I8(20))
 }
@@ -295,7 +298,10 @@ fn parsing_values_i32() {
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
-        .parse_value_expr(crate::parser_v2::ast::Types::I32)
+        .parse_value_expr(Type {
+            r#type: Types::I32,
+            generics: Vec::new(),
+        })
         .unwrap();
     assert_eq!(parse.r#type, TypeValues::I32(20))
 }
@@ -308,7 +314,10 @@ fn parsing_values_f32() {
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
-        .parse_value_expr(crate::parser_v2::ast::Types::F32)
+        .parse_value_expr(Type {
+            r#type: Types::F32,
+            generics: Vec::new(),
+        })
         .unwrap();
     assert_eq!(parse.r#type, TypeValues::F32(20.))
 }
@@ -321,7 +330,10 @@ fn parsing_values_string() {
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
-        .parse_value_expr(crate::parser_v2::ast::Types::String)
+        .parse_value_expr(Type {
+            r#type: Types::String,
+            generics: Vec::new(),
+        })
         .unwrap();
     assert_eq!(parse.r#type, TypeValues::String("hello world!".into()))
 }
@@ -332,7 +344,6 @@ fn parsing_let_expr() {
     let let_expr = "let test:string = \"testing this\"";
     let mut tokens = Lexer::new(let_expr);
     let var = Tokenizer::lex(&mut tokens);
-    //println!("{:#?}", var);
     let mut parser = Parser::new(var);
     let parse = parser.parse_let_expr().unwrap();
     let NodeTypes::Variable(var) = parse.node_type else {
@@ -346,7 +357,8 @@ fn parsing_let_expr() {
 fn parsing_let_exprs() {
     use crate::parser_v2::parser::Parser;
     let ident_str = "let test:string = \"testing this\" 
-        let other:string = \"Hello world!\"";
+        let other:string = \"Hello world!\"
+        let some: array<i32> = [1, 2, 3]";
     let mut tokens = Lexer::new(ident_str);
     let var = Tokenizer::lex(&mut tokens); //     println!("tokens {:#?}", var);
     let mut parser = Parser::new(var);
@@ -389,4 +401,38 @@ fn parsing_let_exprs() {
         panic!("Parsing right exprs expected the type of right node to be a operator")
     };
     assert_eq!(op.r#type, TypeValues::String("Hello world!".into()));
+
+    let var3 = parse.body.get(2).unwrap();
+    let NodeTypes::Variable(var) = &var3.node_type else {
+        panic!("Parsing let exprs expected the type of node to be a variable")
+    };
+    assert_eq!(var.ident.name, "some");
+    assert_eq!(var.var_type.r#type, Types::Array);
+
+    let right = var3.right.as_ref().unwrap();
+    let NodeTypes::Value(op) = &right.node_type else {
+        panic!("Parsing right exprs expected the type of right node to be a operator")
+    };
+    assert_eq!(op.r#type, TypeValues::Array(vec![TypeValues::I32(1), TypeValues::I32(2), TypeValues::I32(3)]));
+}
+
+#[test]
+fn parsing_arrays() {
+    use crate::parser_v2::parser::Parser;
+    let type_array = "array<char>";
+    let values = "['a', 'b', 'c']";
+
+    let mut type_array = Lexer::new(type_array);
+    let var = Tokenizer::lex(&mut type_array);
+    let mut parser = Parser::new(var);
+    let type_array = parser.parse_type_expr().unwrap();
+
+    let mut tokens = Lexer::new(values);
+    let var = Tokenizer::lex(&mut tokens);
+
+    let mut parser = Parser::new(var);
+    let parse = parser.parse_array(type_array).unwrap();
+    assert_eq!(parse.get(0), Some(&TypeValues::Char('a')));
+    assert_eq!(parse.get(1), Some(&TypeValues::Char('b')));
+    assert_eq!(parse.get(2), Some(&TypeValues::Char('c')));
 }

@@ -130,7 +130,7 @@ pub enum Types {
 
 /// [`Types`]
 /// All current type + values in the language
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TypeValues {
     I8(i8),
     U8(u8),
