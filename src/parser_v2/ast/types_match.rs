@@ -31,13 +31,13 @@ impl Types {
             }
             Self::I32 => {
                 let Ok(value) = value.parse::<i32>() else {
-                    return  Err(format!("Expected type value u8 but got value {value}"));
+                    return  Err(format!("Expected type value i32 but got value {value}"));
                 };
                 Ok(TypeValues::I32(value))
             }
             Self::F32 => {
                 let Ok(value) = value.parse::<f32>() else {
-                    return  Err(format!("Expected type value u8 but got value {value}"));
+                    return  Err(format!("Expected type value f32 but got value {value}"));
                 };
                 Ok(TypeValues::F32(value))
             }
@@ -48,10 +48,10 @@ impl Types {
                 Ok(TypeValues::String(value))
             }
             Self::Char => {
-                let Ok(value) = value.parse::<String>() else {
-                    return  Err(format!("Expected type value String but got value {value}"));
+                let Ok(value) = value.parse::<char>() else {
+                    return  Err(format!("Expected type value char but got value {value}"));
                 };
-                Ok(TypeValues::String(value))
+                Ok(TypeValues::Char(value))
             }
             not_supported_conversion => panic!(
                 "Type value conversion shouldn't get called on type {not_supported_conversion:#?}"
