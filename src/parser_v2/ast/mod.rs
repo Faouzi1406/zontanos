@@ -1,7 +1,7 @@
 //! The Abstract Syntax Tree structure of Zontanos
 #![allow(unused)]
 
-use crate::zon_parser::lexer::Operator;
+use crate::{ast::variable, zon_parser::lexer::Operator};
 
 pub mod types_from_str;
 pub mod types_match;
@@ -36,7 +36,7 @@ pub struct Node {
 #[derive(Debug)]
 pub struct Function {
     pub ident: Ident,
-    pub body: Box<Vec<Node>>,
+    pub body: Vec<Node>,
     pub paramaters: Vec<Paramater>,
     pub returns: Type,
 }
@@ -76,11 +76,11 @@ pub struct Type {
 /// Function paramater containing both the type and the name
 ///
 /// **r#type** the type of paramater
-/// **generics** the name of para
+/// **ident** the identifier of paramater
 #[derive(Debug)]
 pub struct Paramater {
-    r#type: Type,
-    name: String,
+    pub r#type: Type,
+    pub ident: Ident,
 }
 
 /// [`Ident`]
@@ -140,7 +140,7 @@ pub enum TypeValues {
     String(String),
     Array(Vec<TypeValues>),
     Identifier(String),
-    None
+    None,
 }
 
 /// [`NodeTypes`]
@@ -148,6 +148,7 @@ pub enum TypeValues {
 #[derive(Debug)]
 pub enum NodeTypes {
     Program,
+    Block,
     Function(Function),
     Variable(Variable),
     Assignment(Assignment),
@@ -164,5 +165,18 @@ impl Node {
             right: None,
             line,
         }
+    }
+
+    pub fn variable(variable: Variable, left_operator: Operator, line: usize) -> Node {
+        let node = Node {
+            node_type: NodeTypes::Variable(variable),
+            left: Some(Box::from(Node::new(
+                NodeTypes::Operator(left_operator),
+                line,
+            ))),
+            right: None,
+            line,
+        };
+        node
     }
 }

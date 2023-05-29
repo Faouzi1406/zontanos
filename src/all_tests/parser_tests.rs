@@ -1,5 +1,5 @@
-//! This contains all the tests for the parser.
-use std::assert_eq;
+// //! This contains all the tests for the parser.
+// use std::assert_eq;
 
 use crate::{
     ast::{
@@ -423,8 +423,8 @@ fn parsing_arrays() {
     let values = "['a', 'b', 'c']";
 
     let mut type_array = Lexer::new(type_array);
-    let var = Tokenizer::lex(&mut type_array);
-    let mut parser = Parser::new(var);
+    let type_array = Tokenizer::lex(&mut type_array);
+    let mut parser = Parser::new(type_array);
     let type_array = parser.parse_type_expr().unwrap();
 
     let mut tokens = Lexer::new(values);
@@ -435,4 +435,16 @@ fn parsing_arrays() {
     assert_eq!(parse.get(0), Some(&TypeValues::Char('a')));
     assert_eq!(parse.get(1), Some(&TypeValues::Char('b')));
     assert_eq!(parse.get(2), Some(&TypeValues::Char('c')));
+}
+
+#[test]
+fn parsing_paramaters() {
+    use crate::parser_v2::parser::Parser;
+    let params = "(hello: string, other: string, some: array<i32>)";
+
+    let mut params = Lexer::new(params);
+    let params = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(params);
+    let params = parser.parse_params();
+    println!("{:#?}", params)
 }

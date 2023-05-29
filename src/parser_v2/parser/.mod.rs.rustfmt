@@ -4,9 +4,9 @@
 
 pub mod errors;
 
-use super::ast::{Ast, Ident, Node, Type, Types, Value, Variable, Paramater};
+use super::ast::{Ast, Ident, Node, Type, Types, Value, Variable};
 use crate::{
-    parser_v2::ast::{NodeTypes, TypeValues, Function},
+    parser_v2::ast::{NodeTypes, TypeValues},
     zon_parser::lexer::{Keywords, Operator, Token, Tokens},
 };
 
@@ -76,6 +76,96 @@ impl Parser {
         Ok(Ident { name: ident.value })
     }
 
+    /// Expects the next stream of tokens to be a type
+    /// Parses up intil the '>' en of generics, or end of single type
+    pub fn parse_type_expr(&mut self) -> ParseResult<Type> {
+        let Some(base_type) = self.next() else { return Err(self.expected_type()) };
+        let Tokens::Kw(_) = base_type.token_type else {return Err(self.expected_type())};
+        let mut base_type = Type {
+            r#type: Types::from(base_type.value.as_str()),
+            generics: Vec::new(),
+        };
+
+        if self.consume_if_next(Tokens::Op(Operator::Less)) {
+            self.parse_generics_expr(&mut base_type)?;
+            return Ok(base_type);
+        }
+        return Ok(base_type);
+    }
+
+    /// Expects the next token to be value
+    /// Parses until a end to the value is found depending on the first token;
+    /// For example a FunctionCall value will get parsed until the end of the function call ')'
+    pub fn parse_value_expr(&mut self, expected_type: Types) -> ParseResult<Value> {
+        let mut value = Value {
+            r#type: TypeValues::None,
+        };
+        let Some(value_expr) = self.next() else {
+            return Err(self.invalid_expected_type("value", "none"));
+        };
+        match value_expr.token_type {
+            Tokens::Number => {
+                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                return Ok(value);
+            }
+            Tokens::FloatNumber => {
+                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                return Ok(value);
+            }
+            Tokens::String => {
+                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                return Ok(value);
+            }
+            Tokens::Identifier => {
+                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                return Ok(value);
+            }
+            _ => return Err(self.invalid_token_in_expr("value", "value")),
+        };
+    }
+
+    /// Parses any valid sequence of a variable expression,
+    /// consider: let hello: string = "some" // valid
+    /// consider: let whut = "some" // invalid no type was given // altought I do want to add type
+    /// inference
+    pub fn parse_let_expr(&mut self) -> ParseResult<Node> {
+        let Some(prev_token) = self.next() else {
+            return Err(self.invalid_expected_type("variable", "none"))
+        };
+        assert!(prev_token.token_type == Tokens::Kw(Keywords::Let));
+
+        let ident = self.parse_next_ident_expr()?;
+        if !self.consume_if_next(Tokens::Colon) {
+            return Err(self.expected_type_seperator());
+        }
+
+        let var_type = self.parse_type_expr()?;
+        let mut node = Node {
+            node_type: NodeTypes::Variable(Variable {
+                ident,
+                var_type: var_type.clone(),
+            }),
+            left: None,
+            right: None,
+            line: prev_token.line,
+        };
+
+        if self.consume_if_next(Tokens::Op(Operator::Eq)) {
+            node.left = Some(Box::from(Node::new(
+                NodeTypes::Operator(Operator::Eq),
+                prev_token.line,
+            )));
+            let variable_value = self.parse_value_expr(var_type.r#type)?;
+            node.right = Some(Box::from(Node::new(
+                NodeTypes::Value(variable_value),
+                prev_token.line,
+            )));
+            Ok(node)
+        } else {
+            Err(self.expected_assign_token())
+        }
+    }
+
     /// Parses any generic expr inbetween a <T...>; It does so recursively, meaning any generic can
     /// have more generics;
     ///
@@ -131,23 +221,6 @@ impl Parser {
         Err(self.expected_end_expr("generics", ">"))
     }
 
-    /// Expects the next stream of tokens to be a type
-    /// Parses up intil the '>' en of generics, or end of single type
-    pub fn parse_type_expr(&mut self) -> ParseResult<Type> {
-        let Some(base_type) = self.next() else { return Err(self.expected_type()) };
-        let Tokens::Kw(_) = base_type.token_type else { return Err(self.expected_type()) };
-        let mut base_type = Type {
-            r#type: Types::from(base_type.value.as_str()),
-            generics: Vec::new(),
-        };
-
-        if self.consume_if_next(Tokens::Op(Operator::Less)) {
-            self.parse_generics_expr(&mut base_type)?;
-            return Ok(base_type);
-        }
-        return Ok(base_type);
-    }
-
     /// If the array contains no parse errors it will return a [`TypeValues::Array`];
     ///
     /// It expects to already be one before the open bracket of the array: >here[not here...; so it
@@ -159,6 +232,7 @@ impl Parser {
     /// introducing more complex types, this could be a posibility**
     pub fn parse_array(&mut self, base_type: Type) -> ParseResult<Vec<TypeValues>> {
         let mut array_items: Vec<TypeValues> = Vec::new();
+        println!("{:#?}", base_type);
         let Some(inner_array_type)  = base_type.generics.get(0) else {
             return Err(self.expected_array_generic());
         };
@@ -188,8 +262,9 @@ impl Parser {
                     curr = TypeValues::None
                 }
                 Tokens::CloseBracket => {
-                    if curr != TypeValues::None {
-                        array_items.push(curr.clone())
+if curr != TypeValues::None {
+                    array_items.push(curr.clone())
+;
                     }
                     return Ok(array_items);
                 }
@@ -207,118 +282,6 @@ impl Parser {
 
         Err(self.expected_end_expr("array", "]"))
     }
-
-    /// Expects the next token to be value
-    /// Parses until a end to the value is found depending on the first token;
-    /// For example a FunctionCall value will get parsed until the end of the function call ')'
-    pub fn parse_value_expr(&mut self, base_type: Type) -> ParseResult<Value> {
-        let mut value = Value {
-            r#type: TypeValues::None,
-        };
-        let expected_type = base_type.r#type.clone();
-        let Some(value_expr) = self.next() else {
-            return Err(self.invalid_expected_type("value", "none"));
-        };
-        match value_expr.token_type {
-            Tokens::Number => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
-                return Ok(value);
-            }
-            Tokens::FloatNumber => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
-                return Ok(value);
-            }
-            Tokens::String => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
-                return Ok(value);
-            }
-            Tokens::OpenBracket => {
-                self.walk_back(1);
-                value.r#type = TypeValues::Array(self.parse_array(base_type)?);
-                return Ok(value);
-            }
-            Tokens::Identifier => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
-                return Ok(value);
-            }
-            _ => return Err(self.invalid_token_in_expr("value", "value")),
-        };
-    }
-
-    /// Parses any valid sequence of a variable expression,
-    /// consider: let hello: string = "some" // valid
-    /// consider: let whut = "some" // invalid no type was given // altought I do want to add type
-    /// inference
-    pub fn parse_let_expr(&mut self) -> ParseResult<Node> {
-        let Some(next_token) = self.next() else {
-            return Err(self.invalid_expected_type("variable", "none"))
-        };
-        assert!(next_token.token_type == Tokens::Kw(Keywords::Let));
-
-        let ident = self.parse_next_ident_expr()?;
-        if !self.consume_if_next(Tokens::Colon) {
-            return Err(self.expected_type_seperator());
-        }
-
-        let var_type = self.parse_type_expr()?;
-        
-
-        if self.consume_if_next(Tokens::Op(Operator::Eq)) {
-            let mut node = Node::variable(Variable {ident, var_type: var_type.clone()}, Operator::Eq,next_token.line);
-            let variable_value = self.parse_value_expr(var_type)?;
-            node.right = Some(Box::from(Node::new(
-                NodeTypes::Value(variable_value),
-                next_token.line,
-            )));
-            Ok(node)
-        } else {
-            Err(self.expected_assign_token())
-        }
-    }
-
-    // Expects to be before the openbrace when getting called upon;
-    pub fn parse_params(&mut self) -> ParseResult<Vec<Paramater>> {
-        if !self.consume_if_next(Tokens::OpenBrace) {
-            return Err(self.expected_params_openbrace());
-        };
-        let mut params = Vec::new();
-        while let Some(_next_param) = self.next() {
-            self.walk_back(1);
-
-            let ident = self.parse_next_ident_expr()?;
-            if !self.consume_if_next(Tokens::Colon) {
-                return Err(self.expected_type_seperator());
-            }
-
-            let type_param = self.parse_type_expr()?;
-            params.push(Paramater { r#type: type_param, ident  });
-
-            if self.consume_if_next(Tokens::CloseBrace) {
-                return Ok(params);
-            }
-            if !self.consume_if_next(Tokens::Comma) {
-                return Err(self.expected_type_seperator());
-            }
-        }
-
-
-        return Err(self.expected_end_expr("paramaters", ")"));
-    }
-
-    pub fn parse_fn_expr(&mut self) -> ParseResult<Node> {
-        let ident = self.parse_next_ident_expr()?;
-        let returns = self.parse_type_expr()?;
-        let function = Function { returns, ident, body: Vec::new(), paramaters: Vec::new()  };
-        while let Some(body_token) = self.next() {
-            match body_token.token_type {
-                Tokens::Kw(Keywords::Let) => {
-                    let parse_let = self.parse_let_expr()?;
-                }
-                _ => return Err("Black hear, black keys, black, black".to_string())
-            }
-        }
-        todo!()
-    }
 }
 
 impl Iterator for Parser {
@@ -327,5 +290,6 @@ impl Iterator for Parser {
         let pos = self.tokens.get(self.pos)?;
         self.pos += 1;
         return Some(pos.clone());
+        // Stfu -:) fuck rust
     }
 }

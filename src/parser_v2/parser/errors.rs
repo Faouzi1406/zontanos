@@ -19,6 +19,15 @@ impl Parser {
         msg
     }
 
+    pub fn expected_params_openbrace(&mut self) -> String {
+        let current = self.assert_prev_token();
+        let msg = format!(
+         "[Parse Error] Expected a open brace '(' to the paramaters on line {}",
+         current.line
+        );
+        msg
+    }
+
     pub fn expected_array_generic(&mut self) -> String {
         let current = self.assert_prev_token();
         let msg = format!(
