@@ -445,6 +445,57 @@ fn parsing_paramaters() {
     let mut params = Lexer::new(params);
     let params = Tokenizer::lex(&mut params);
     let mut parser = Parser::new(params);
-    let params = parser.parse_params();
-    println!("{:#?}", params)
+    let params = parser.parse_params().expect("Couldn't unwrap on params?");
+
+    let first_param = &params.get(0).expect("Couldn't get the first paramater").r#type;
+    assert_eq!(first_param.r#type, Types::String);
+
+    let second_param = &params.get(0).expect("Couldn't get the second paramater");
+    let name = &second_param.ident;
+    assert_eq!(name.name, "hello");
+    assert_eq!(second_param.r#type.r#type, Types::String);
+
+    let second_param = &params.get(1).expect("Couldn't get the second paramater");
+    let name = &second_param.ident;
+    assert_eq!(name.name, "other");
+    assert_eq!(second_param.r#type.r#type, Types::String);
+
+    let second_param = &params.get(2).expect("Couldn't get the second paramater");
+    let name = &second_param.ident;
+    assert_eq!(name.name, "some");
+    assert_eq!(second_param.r#type.r#type, Types::Array);
+    let generic_i32 = second_param.r#type.generics.get(0).unwrap();
+    assert_eq!(generic_i32.r#type, Types::I32);
+}
+
+#[test]
+fn parsing_functions() {
+    use crate::parser_v2::parser::Parser;
+    let params = "fn name(hello: string, other: string, some: array<i32>) string {
+    let some: string = \"hello world!\";
+    }";
+
+    let mut params = Lexer::new(params);
+    let params = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(params);
+    let function = parser.parse().expect("
+                                         You shouldn't panic, 
+                                         and yet you did, 
+                                         I see you as a failure.
+                                         yours truly,
+                                         Me( the thing that parses a function (ask old you or someting) )");
+
+    let function = function.body.get(0).expect("Couldn't get node in side body of ast");
+    let NodeTypes::Function(function) = &function.node_type else {
+        panic!("Expected the firtst nody in the ast body to be a function (when parsing a function).");
+    };
+
+    assert_eq!(function.returns.r#type, Types::String);
+
+    let function_let = function.body.get(0).unwrap();
+    let NodeTypes::Variable(func) = &function_let.node_type else {
+        panic!("Expected the firt node type in the function body to be of variable 'let some: string = ...';");
+    };
+    assert_eq!(func.ident.name , "some");
+    assert_eq!(func.var_type.r#type, Types::String);
 }

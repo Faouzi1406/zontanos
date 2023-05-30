@@ -110,7 +110,6 @@ pub struct Value {
 #[derive(Debug)]
 pub struct FunctionCall {
     pub calls_to: Ident,
-    pub arguments: Vec<Value>,
 }
 
 /// [`Types`]
@@ -155,6 +154,7 @@ pub enum NodeTypes {
     Operator(Operator),
     Value(Value),
     FunctionCall(FunctionCall),
+    Arguments(Vec<Value>),
 }
 
 impl Node {

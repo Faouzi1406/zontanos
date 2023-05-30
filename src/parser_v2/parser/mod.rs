@@ -4,7 +4,7 @@
 
 pub mod errors;
 
-use super::ast::{Ast, Ident, Node, Type, Types, Value, Variable, Paramater};
+use super::ast::{Ast, Ident, Node, Type, Types, Value, Variable, Paramater, FunctionCall};
 use crate::{
     parser_v2::ast::{NodeTypes, TypeValues, Function},
     zon_parser::lexer::{Keywords, Operator, Token, Tokens},
@@ -38,8 +38,13 @@ impl Parser {
                     // We found the let token, but parse_let_expr expects the
                     // next token to be a let token so we walk one back
                     self.walk_back(1);
+
                     let let_expr = self.parse_let_expr()?;
                     ast.body.push(let_expr);
+                }
+                Tokens::Kw(Keywords::Fn) => {
+                    let function = self.parse_fn_expr()?;
+                    ast.body.push(function);
                 }
                 kw => todo!("found {kw:#?}"),
             }
@@ -127,7 +132,6 @@ impl Parser {
             }
         }
 
-        // If we get here it means we never got a ending '>' therefore we return and error
         Err(self.expected_end_expr("generics", ">"))
     }
 
@@ -220,15 +224,7 @@ impl Parser {
             return Err(self.invalid_expected_type("value", "none"));
         };
         match value_expr.token_type {
-            Tokens::Number => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
-                return Ok(value);
-            }
-            Tokens::FloatNumber => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
-                return Ok(value);
-            }
-            Tokens::String => {
+            Tokens::Number | Tokens::Char | Tokens::FloatNumber | Tokens::String => {
                 value.r#type = expected_type.type_value_convert(&value_expr.value)?;
                 return Ok(value);
             }
@@ -276,12 +272,17 @@ impl Parser {
         }
     }
 
-    // Expects to be before the openbrace when getting called upon;
+    /// Expects to be before the openbrace `POS_HERE-next->(` when getting called upon; 
+    ///
+    /// # Example of paramaters
+    /// `(id_0: string, id1: array<i32>)`
     pub fn parse_params(&mut self) -> ParseResult<Vec<Paramater>> {
         if !self.consume_if_next(Tokens::OpenBrace) {
             return Err(self.expected_params_openbrace());
         };
+
         let mut params = Vec::new();
+
         while let Some(_next_param) = self.next() {
             self.walk_back(1);
 
@@ -296,28 +297,60 @@ impl Parser {
             if self.consume_if_next(Tokens::CloseBrace) {
                 return Ok(params);
             }
+
             if !self.consume_if_next(Tokens::Comma) {
                 return Err(self.expected_type_seperator());
             }
         }
 
-
         return Err(self.expected_end_expr("paramaters", ")"));
     }
 
+    pub fn parse_function_expr(&mut self) {
+    }
+
+    /// Parses any valid function statement, starting from the identifier up until the ending close
+    /// bracket;
+    ///
+    /// # Example 
+    ///
+    /// fn `->starts here` some(..) {
+    ///     body
+    /// }
     pub fn parse_fn_expr(&mut self) -> ParseResult<Node> {
         let ident = self.parse_next_ident_expr()?;
+        let paramaters = self.parse_params()?;
         let returns = self.parse_type_expr()?;
-        let function = Function { returns, ident, body: Vec::new(), paramaters: Vec::new()  };
+        let mut function = Function { returns, ident, body: Vec::new(), paramaters  };
+
+        if !self.consume_if_next(Tokens::OpenCurlyBracket) {
+            return Err(self.expected_body_openbracket());
+        }
+
         while let Some(body_token) = self.next() {
             match body_token.token_type {
                 Tokens::Kw(Keywords::Let) => {
+                    self.walk_back(1);
                     let parse_let = self.parse_let_expr()?;
+                    function.body.push(parse_let)
                 }
-                _ => return Err("Black hear, black keys, black, black".to_string())
+                Tokens::Kw(Keywords::Fn) => {
+                    let parse_fn = self.parse_fn_expr()?;
+                    function.body.push(parse_fn);
+                }
+                Tokens::OpenBracket => {
+                    let parse_block = self.parse_fn_expr()?;
+                    function.body.push(parse_block)
+                }
+                Tokens::CloseCurlyBracket => {
+                    let function_node = Node::new(NodeTypes::Function(function), body_token.line);
+                    return Ok(function_node)
+                }
+                _ => return Err(format!("Found a token that is invalid in the body of a function token: {:#?} on line {}", body_token.value, body_token.line))
             }
         }
-        todo!()
+
+        Err(self.expected_end_expr("function body", "}"))
     }
 }
 
