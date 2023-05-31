@@ -514,3 +514,30 @@ fn parse_arguments() {
     let second_arg = parse.get(2).unwrap();
     assert_eq!(second_arg.value, TypeValues::String("testing".into()));
 }
+
+#[test]
+fn parse_func_call() {
+    use crate::parser_v2::parser::Parser;
+    let args = "test(1, 10, \"testing\")";
+
+    let mut params = Tokenizer::new(args);
+    let tokens = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(tokens);
+    let parse = parser.parse_fn_call_expr().unwrap();
+
+    let first_arg = parse.0.calls_to.name;
+    assert_eq!(first_arg, "test".to_string());
+
+    let NodeTypes::Arguments(arguments) = parse.1 else {
+        panic!("parse function call expected arguments");
+    };
+
+    let firt_arg = arguments.get(0).unwrap();
+    assert_eq!(firt_arg.value, TypeValues::I32(1));
+
+    let firt_arg = arguments.get(1).unwrap();
+    assert_eq!(firt_arg.value, TypeValues::I32(10));
+        
+    let firt_arg = arguments.get(2).unwrap();
+    assert_eq!(firt_arg.value, TypeValues::String("testing".into()))
+}
