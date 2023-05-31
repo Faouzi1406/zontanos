@@ -3,10 +3,11 @@
 #![allow(dead_code)]
 
 pub mod errors;
+pub mod math;
 
-use super::ast::{Ast, Ident, Node, Type, Types, Value, Variable, Paramater, FunctionCall};
+use super::ast::{Ast, FunctionCall, Ident, Node, Paramater, Type, Types, Value, Variable, Assignment};
 use crate::{
-    parser_v2::ast::{NodeTypes, TypeValues, Function},
+    parser_v2::ast::{Function, NodeTypes, TypeValues},
     zon_parser::lexer::{Keywords, Operator, Token, Tokens},
 };
 
@@ -20,6 +21,10 @@ type ParseResult<T> = Result<T, String>;
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         Self { tokens, pos: 0 }
+    }
+
+    pub fn peak(&mut self) -> Option<&Token> {
+        return self.tokens.get(self.pos + 1);
     }
 
     pub fn walk_back(&mut self, n: usize) {
@@ -168,7 +173,10 @@ impl Parser {
         };
 
         if !self.consume_if_next(Tokens::OpenBracket) {
-            return Err("Parse array should only get called if the next token is a open bracket.".to_string());
+            return Err(
+                "Parse array should only get called if the next token is a open bracket."
+                    .to_string(),
+            );
         }
 
         let mut curr = TypeValues::None;
@@ -198,8 +206,7 @@ impl Parser {
                     return Ok(array_items);
                 }
                 Tokens::OpenBracket => {
-                    return 
-                    Err(format!("Altough supporting arrays in arrays is planned it is currently not supported, found ']' in array on line {}", array_value.line));
+                    return Err(self.not_supported_array_in_array());
                 }
                 invalid_token => {
                     return Err(
@@ -259,10 +266,16 @@ impl Parser {
         }
 
         let var_type = self.parse_type_expr()?;
-        
 
         if self.consume_if_next(Tokens::Op(Operator::Eq)) {
-            let mut node = Node::variable(Variable {ident, var_type: var_type.clone()}, Operator::Eq,next_token.line);
+            let mut node = Node::variable(
+                Variable {
+                    ident,
+                    var_type: var_type.clone(),
+                },
+                Operator::Eq,
+                next_token.line,
+            );
             let variable_value = self.parse_value_expr(var_type)?;
             node.right = Some(Box::from(Node::new(
                 NodeTypes::Value(variable_value),
@@ -274,7 +287,7 @@ impl Parser {
         }
     }
 
-    /// Expects to be before the openbrace `POS_HERE-next->(` when getting called upon; 
+    /// Expects to be before the openbrace `POS_HERE-next->(` when getting called upon;
     ///
     /// # Example of paramaters
     /// `(id_0: string, id1: array<i32>)`
@@ -294,7 +307,10 @@ impl Parser {
             }
 
             let type_param = self.parse_type_expr()?;
-            params.push(Paramater { r#type: type_param, ident  });
+            params.push(Paramater {
+                r#type: type_param,
+                ident,
+            });
 
             if self.consume_if_next(Tokens::CloseBrace) {
                 return Ok(params);
@@ -316,33 +332,32 @@ impl Parser {
 
         // we assume defaults here, consider float to be f32, number to be i32, etc.
         match value.token_type {
-            Tokens::String   => {
+            Tokens::String => {
                 let none_type = Types::String;
                 let value = none_type.type_value_convert(&value.value)?;
                 Ok(Value { value })
-
             }
             Tokens::Char => {
                 let none_type = Types::Char;
                 let value = none_type.type_value_convert(&value.value)?;
                 Ok(Value { value })
-            },
+            }
             Tokens::Number => {
                 let none_type = Types::I32;
                 let value = none_type.type_value_convert(&value.value)?;
                 Ok(Value { value })
-            },
+            }
             Tokens::FloatNumber => {
                 let none_type = Types::F32;
                 let value = none_type.type_value_convert(&value.value)?;
                 Ok(Value { value })
-            },
-            Tokens::Identifier  =>  {
+            }
+            Tokens::Identifier => {
                 let none_type = Types::Ident;
                 let value = none_type.type_value_convert(&value.value)?;
                 Ok(Value { value })
             }
-            _ => Err(self.invalid_token_in_expr("value", "value"))
+            _ => Err(self.invalid_token_in_expr("value", "value")),
         }
     }
 
@@ -350,15 +365,15 @@ impl Parser {
         // Todo: change this :|
         assert_eq!(self.next().unwrap().token_type, Tokens::OpenBrace);
 
-        let mut values  = Vec::new();
+        let mut values = Vec::new();
 
         while let Some(_) = self.next() {
             self.walk_back(1);
-            let value =  self.parse_not_know_type_value()?;
+            let value = self.parse_not_know_type_value()?;
             values.push(value);
 
             if self.consume_if_next(Tokens::Comma) {
-                continue
+                continue;
             }
             if self.consume_if_next(Tokens::CloseBrace) {
                 return Ok(values);
@@ -368,7 +383,24 @@ impl Parser {
         }
 
         Err(self.expected_end_expr("argument", ")"))
+    }
 
+    pub fn parse_reassignment_expr(&mut self) -> ParseResult<Node> {
+        let assigns_to = self.parse_next_ident_expr()?;
+        if let Some(token) = self.next()  {
+            if let Tokens::Op(op) = token.token_type {
+                let value = self.parse_not_know_type_value()?;
+                let assignment = Assignment { assigns_to };
+                let node = Node {
+                    node_type: NodeTypes::Assignment(assignment),
+                    right: Some(Box::new(Node::new(NodeTypes::Value(value), token.line))),
+                    left: Some(Box::new(Node::new(NodeTypes::Operator(op), token.line))),
+                    line: token.line
+                };
+                return Ok(node)
+            }
+        } 
+        Err(self.expected_assign_token())
     }
 
     /// Returns the block node and the end line
@@ -398,34 +430,38 @@ impl Parser {
                     // Handle re-assignments
                     self.walk_back(1);
                     let (func_call, arguments) = self.parse_fn_call_expr()?;
-                    let func_call_node = Node::fn_call(
-                        func_call, arguments, body_token.line);
+                    let func_call_node = Node::fn_call(func_call, arguments, body_token.line);
                     body.push(func_call_node);
                 }
                 Tokens::CloseCurlyBracket => {
                     return Ok((body, body_token.line));
                 }
-                _ => return Err(
-                    format!("Found a token that is invalid in the body of a token: {:#?} on line {}", 
-                            body_token.value, body_token.line))
+                _ => {
+                    return Err(format!(
+                        "Found a token that is invalid in the body of a token: {:#?} on line {}",
+                        body_token.value, body_token.line
+                    ))
+                }
             }
         }
 
         Err(self.expected_end_expr("body", "}"))
     }
 
-    /// Returns the function call it self, and it's arguments 
+    /// Returns the function call it self, and it's arguments
     pub fn parse_fn_call_expr(&mut self) -> ParseResult<(FunctionCall, NodeTypes)> {
         let ident = self.parse_next_ident_expr()?;
         let arguments = self.parse_args_expr()?;
-        Ok((FunctionCall { calls_to: ident }, NodeTypes::Arguments(arguments)))
+        Ok((
+            FunctionCall { calls_to: ident },
+            NodeTypes::Arguments(arguments),
+        ))
     }
- 
 
     /// Parses any valid function statement, starting from the identifier up until the ending close
     /// bracket;
     ///
-    /// # Example 
+    /// # Example
     ///
     /// fn `->starts here` some(..) {
     ///     body
@@ -435,7 +471,12 @@ impl Parser {
         let paramaters = self.parse_params()?;
         let returns = self.parse_type_expr()?;
         let (body, line) = self.parse_block_expr()?;
-        let function = Function { returns, ident, body, paramaters  };
+        let function = Function {
+            returns,
+            ident,
+            body,
+            paramaters,
+        };
         Ok(Node::new(NodeTypes::Function(function), line))
     }
 }

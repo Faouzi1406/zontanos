@@ -1,8 +1,10 @@
 mod all_tests;
 mod ast;
 mod codegen;
-mod zon_parser;
 mod parser_v2;
+mod zon_parser;
+
+use parser_v2::parser::math::Que;
 
 use crate::{
     codegen::CodeGen,
@@ -11,7 +13,7 @@ use crate::{
         parser::parser::Parser,
     },
 };
-use std::{fs, io::Write};
+use std::fs;
 
 fn main() -> Result<(), &'static str> {
     let string_vars = fs::read_to_string("./test_code/main.zon").unwrap_or(
@@ -31,13 +33,25 @@ fn main() -> Result<(), &'static str> {
     let code_gen = CodeGen::compile_default(ast);
     let ok = code_gen.unwrap();
 
-    let create = fs::File::create("./main.l");
-    if let Ok(mut file) = create {
-        let Ok(_) = file.write(ok.as_bytes()) else {
-            return Err("Coulnd't write output to file");
-        };
-        return Ok(());
-    };
+    //let create = fs::File::create("./main.l");
+    //if let Ok(mut file) = create {
+    //  let Ok(_) = file.write(ok.as_bytes()) else {
+    //return Err("Coulnd't write output to file");
+    //};
+    //return Ok(());
+    //};
 
-    return Err("Coulnd't create file and compile");
+    //let mut stack = Stack::init();
+    //stack.push(10);
+    //stack.push(40);
+
+    let mut que = Que::init();
+    que.append(10);
+    que.append(30);
+    que.append(50);
+    que.append(69);
+    que.append(100);
+    println!("{:#?}", que);
+
+    return Ok(());
 }
