@@ -4,9 +4,9 @@
 
 pub mod errors;
 
-use super::ast::{Ast, Ident, Node, Type, Types, Value, Variable};
+use super::ast::{Ast, Ident, Node, Type, Types, Value, Variable, Paramater, FunctionCall};
 use crate::{
-    parser_v2::ast::{NodeTypes, TypeValues},
+    parser_v2::ast::{NodeTypes, TypeValues, Function},
     zon_parser::lexer::{Keywords, Operator, Token, Tokens},
 };
 
@@ -38,8 +38,13 @@ impl Parser {
                     // We found the let token, but parse_let_expr expects the
                     // next token to be a let token so we walk one back
                     self.walk_back(1);
+
                     let let_expr = self.parse_let_expr()?;
                     ast.body.push(let_expr);
+                }
+                Tokens::Kw(Keywords::Fn) => {
+                    let function = self.parse_fn_expr()?;
+                    ast.body.push(function);
                 }
                 kw => todo!("found {kw:#?}"),
             }
@@ -127,7 +132,6 @@ impl Parser {
             }
         }
 
-        // If we get here it means we never got a ending '>' therefore we return and error
         Err(self.expected_end_expr("generics", ">"))
     }
 
@@ -135,7 +139,7 @@ impl Parser {
     /// Parses up intil the '>' en of generics, or end of single type
     pub fn parse_type_expr(&mut self) -> ParseResult<Type> {
         let Some(base_type) = self.next() else { return Err(self.expected_type()) };
-        let Tokens::Kw(_) = base_type.token_type else {return Err(self.expected_type())};
+        let Tokens::Kw(_) = base_type.token_type else { return Err(self.expected_type()) };
         let mut base_type = Type {
             r#type: Types::from(base_type.value.as_str()),
             generics: Vec::new(),
@@ -213,32 +217,26 @@ impl Parser {
     /// For example a FunctionCall value will get parsed until the end of the function call ')'
     pub fn parse_value_expr(&mut self, base_type: Type) -> ParseResult<Value> {
         let mut value = Value {
-            r#type: TypeValues::None,
+            value: TypeValues::None,
         };
+
         let expected_type = base_type.r#type.clone();
         let Some(value_expr) = self.next() else {
             return Err(self.invalid_expected_type("value", "none"));
         };
+
         match value_expr.token_type {
-            Tokens::Number => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
-                return Ok(value);
-            }
-            Tokens::FloatNumber => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
-                return Ok(value);
-            }
-            Tokens::String => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+            Tokens::Number | Tokens::Char | Tokens::FloatNumber | Tokens::String => {
+                value.value = expected_type.type_value_convert(&value_expr.value)?;
                 return Ok(value);
             }
             Tokens::OpenBracket => {
                 self.walk_back(1);
-                value.r#type = TypeValues::Array(self.parse_array(base_type)?);
+                value.value = TypeValues::Array(self.parse_array(base_type)?);
                 return Ok(value);
             }
             Tokens::Identifier => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                value.value = expected_type.type_value_convert(&value_expr.value)?;
                 return Ok(value);
             }
             _ => return Err(self.invalid_token_in_expr("value", "value")),
@@ -250,10 +248,10 @@ impl Parser {
     /// consider: let whut = "some" // invalid no type was given // altought I do want to add type
     /// inference
     pub fn parse_let_expr(&mut self) -> ParseResult<Node> {
-        let Some(prev_token) = self.next() else {
+        let Some(next_token) = self.next() else {
             return Err(self.invalid_expected_type("variable", "none"))
         };
-        assert!(prev_token.token_type == Tokens::Kw(Keywords::Let));
+        assert!(next_token.token_type == Tokens::Kw(Keywords::Let));
 
         let ident = self.parse_next_ident_expr()?;
         if !self.consume_if_next(Tokens::Colon) {
@@ -261,30 +259,167 @@ impl Parser {
         }
 
         let var_type = self.parse_type_expr()?;
-        let mut node = Node {
-            node_type: NodeTypes::Variable(Variable {
-                ident,
-                var_type: var_type.clone(),
-            }),
-            left: None,
-            right: None,
-            line: prev_token.line,
-        };
+        
 
         if self.consume_if_next(Tokens::Op(Operator::Eq)) {
-            node.left = Some(Box::from(Node::new(
-                NodeTypes::Operator(Operator::Eq),
-                prev_token.line,
-            )));
+            let mut node = Node::variable(Variable {ident, var_type: var_type.clone()}, Operator::Eq,next_token.line);
             let variable_value = self.parse_value_expr(var_type)?;
             node.right = Some(Box::from(Node::new(
                 NodeTypes::Value(variable_value),
-                prev_token.line,
+                next_token.line,
             )));
             Ok(node)
         } else {
             Err(self.expected_assign_token())
         }
+    }
+
+    /// Expects to be before the openbrace `POS_HERE-next->(` when getting called upon; 
+    ///
+    /// # Example of paramaters
+    /// `(id_0: string, id1: array<i32>)`
+    pub fn parse_params(&mut self) -> ParseResult<Vec<Paramater>> {
+        if !self.consume_if_next(Tokens::OpenBrace) {
+            return Err(self.expected_params_openbrace());
+        };
+
+        let mut params = Vec::new();
+
+        while let Some(_next_param) = self.next() {
+            self.walk_back(1);
+
+            let ident = self.parse_next_ident_expr()?;
+            if !self.consume_if_next(Tokens::Colon) {
+                return Err(self.expected_type_seperator());
+            }
+
+            let type_param = self.parse_type_expr()?;
+            params.push(Paramater { r#type: type_param, ident  });
+
+            if self.consume_if_next(Tokens::CloseBrace) {
+                return Ok(params);
+            }
+
+            if !self.consume_if_next(Tokens::Comma) {
+                return Err(self.expected_type_seperator());
+            }
+        }
+
+        return Err(self.expected_end_expr("paramaters", ")"));
+    }
+
+    fn parse_not_know_type_value(&mut self) -> ParseResult<Value> {
+        let Some(value) = self.next() else {
+            //todo fix tis!
+            return Err(self.expected_value_seprator());
+        };
+
+        // we assume defaults here, consider float to be f32, number to be i32, etc.
+        match value.token_type {
+            Tokens::String   => {
+                let none_type = Types::String;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+
+            }
+            Tokens::Char => {
+                let none_type = Types::Char;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+            },
+            Tokens::Number => {
+                let none_type = Types::I32;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+            },
+            Tokens::FloatNumber => {
+                let none_type = Types::F32;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+            },
+            Tokens::Identifier  =>  {
+                let none_type = Types::Ident;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+            }
+            _ => Err(self.invalid_token_in_expr("value", "value"))
+        }
+    }
+
+    pub fn parse_args_expr(&mut self) -> ParseResult<Vec<Value>> {
+        // Todo: change this :|
+        assert_eq!(self.next().unwrap().token_type, Tokens::OpenBrace);
+
+        let mut values  = Vec::new();
+
+        while let Some(_) = self.next() {
+            self.walk_back(1);
+            let value =  self.parse_not_know_type_value()?;
+            values.push(value);
+
+            if self.consume_if_next(Tokens::Comma) {
+                continue
+            }
+            if self.consume_if_next(Tokens::CloseBrace) {
+                return Ok(values);
+            }
+
+            return Err(self.expected_end_expr("argument", ")"));
+        }
+
+        Err(self.expected_end_expr("argument", ")"))
+    }
+
+    /// Returns the function call it self, and it's arguments 
+    pub fn parse_fn_call_expr(&mut self) -> ParseResult<(FunctionCall, NodeTypes)> {
+        let ident = self.parse_next_ident_expr()?;
+        let arguments = self.parse_args_expr()?;
+        Ok((FunctionCall { calls_to: ident }, NodeTypes::Arguments(arguments)))
+    }
+ 
+
+    /// Parses any valid function statement, starting from the identifier up until the ending close
+    /// bracket;
+    ///
+    /// # Example 
+    ///
+    /// fn `->starts here` some(..) {
+    ///     body
+    /// }
+    pub fn parse_fn_expr(&mut self) -> ParseResult<Node> {
+        let ident = self.parse_next_ident_expr()?;
+        let paramaters = self.parse_params()?;
+        let returns = self.parse_type_expr()?;
+        let mut function = Function { returns, ident, body: Vec::new(), paramaters  };
+
+        if !self.consume_if_next(Tokens::OpenCurlyBracket) {
+            return Err(self.expected_body_openbracket());
+        }
+
+        while let Some(body_token) = self.next() {
+            match body_token.token_type {
+                Tokens::Kw(Keywords::Let) => {
+                    self.walk_back(1);
+                    let parse_let = self.parse_let_expr()?;
+                    function.body.push(parse_let)
+                }
+                Tokens::Kw(Keywords::Fn) => {
+                    let parse_fn = self.parse_fn_expr()?;
+                    function.body.push(parse_fn);
+                }
+                Tokens::OpenBracket => {
+                    let parse_block = self.parse_fn_expr()?;
+                    function.body.push(parse_block)
+                }
+                Tokens::CloseCurlyBracket => {
+                    let function_node = Node::new(NodeTypes::Function(function), body_token.line);
+                    return Ok(function_node)
+                }
+                _ => return Err(format!("Found a token that is invalid in the body of a function token: {:#?} on line {}", body_token.value, body_token.line))
+            }
+        }
+
+        Err(self.expected_end_expr("function body", "}"))
     }
 }
 

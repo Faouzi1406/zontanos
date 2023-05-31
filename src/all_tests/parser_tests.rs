@@ -1,5 +1,5 @@
-//! This contains all the tests for the parser.
-use std::assert_eq;
+// //! This contains all the tests for the parser.
+// use std::assert_eq;
 
 use crate::{
     ast::{
@@ -287,7 +287,7 @@ fn parsing_values_i8() {
             generics: Vec::new(),
         })
         .unwrap();
-    assert_eq!(parse.r#type, TypeValues::I8(20))
+    assert_eq!(parse.value, TypeValues::I8(20))
 }
 
 #[test]
@@ -303,7 +303,7 @@ fn parsing_values_i32() {
             generics: Vec::new(),
         })
         .unwrap();
-    assert_eq!(parse.r#type, TypeValues::I32(20))
+    assert_eq!(parse.value, TypeValues::I32(20))
 }
 
 #[test]
@@ -319,7 +319,7 @@ fn parsing_values_f32() {
             generics: Vec::new(),
         })
         .unwrap();
-    assert_eq!(parse.r#type, TypeValues::F32(20.))
+    assert_eq!(parse.value, TypeValues::F32(20.))
 }
 
 #[test]
@@ -335,7 +335,7 @@ fn parsing_values_string() {
             generics: Vec::new(),
         })
         .unwrap();
-    assert_eq!(parse.r#type, TypeValues::String("hello world!".into()))
+    assert_eq!(parse.value, TypeValues::String("hello world!".into()))
 }
 
 #[test]
@@ -381,7 +381,7 @@ fn parsing_let_exprs() {
     let NodeTypes::Value(op) = &right.node_type else {
         panic!("Parsing right exprs expected the type of right node to be a operator")
     };
-    assert_eq!(op.r#type, TypeValues::String("testing this".into()));
+    assert_eq!(op.value, TypeValues::String("testing this".into()));
 
     let var2 = parse.body.get(1).unwrap();
     let NodeTypes::Variable(var) = &var2.node_type else {
@@ -400,7 +400,7 @@ fn parsing_let_exprs() {
     let NodeTypes::Value(op) = &right.node_type else {
         panic!("Parsing right exprs expected the type of right node to be a operator")
     };
-    assert_eq!(op.r#type, TypeValues::String("Hello world!".into()));
+    assert_eq!(op.value, TypeValues::String("Hello world!".into()));
 
     let var3 = parse.body.get(2).unwrap();
     let NodeTypes::Variable(var) = &var3.node_type else {
@@ -413,7 +413,7 @@ fn parsing_let_exprs() {
     let NodeTypes::Value(op) = &right.node_type else {
         panic!("Parsing right exprs expected the type of right node to be a operator")
     };
-    assert_eq!(op.r#type, TypeValues::Array(vec![TypeValues::I32(1), TypeValues::I32(2), TypeValues::I32(3)]));
+    assert_eq!(op.value, TypeValues::Array(vec![TypeValues::I32(1), TypeValues::I32(2), TypeValues::I32(3)]));
 }
 
 #[test]
@@ -423,8 +423,8 @@ fn parsing_arrays() {
     let values = "['a', 'b', 'c']";
 
     let mut type_array = Lexer::new(type_array);
-    let var = Tokenizer::lex(&mut type_array);
-    let mut parser = Parser::new(var);
+    let type_array = Tokenizer::lex(&mut type_array);
+    let mut parser = Parser::new(type_array);
     let type_array = parser.parse_type_expr().unwrap();
 
     let mut tokens = Lexer::new(values);
@@ -435,4 +435,109 @@ fn parsing_arrays() {
     assert_eq!(parse.get(0), Some(&TypeValues::Char('a')));
     assert_eq!(parse.get(1), Some(&TypeValues::Char('b')));
     assert_eq!(parse.get(2), Some(&TypeValues::Char('c')));
+}
+
+#[test]
+fn parsing_paramaters() {
+    use crate::parser_v2::parser::Parser;
+    let params = "(hello: string, other: string, some: array<i32>)";
+
+    let mut params = Lexer::new(params);
+    let params = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(params);
+    let params = parser.parse_params().expect("Couldn't unwrap on params?");
+
+    let first_param = &params.get(0).expect("Couldn't get the first paramater").r#type;
+    assert_eq!(first_param.r#type, Types::String);
+
+    let second_param = &params.get(0).expect("Couldn't get the second paramater");
+    let name = &second_param.ident;
+    assert_eq!(name.name, "hello");
+    assert_eq!(second_param.r#type.r#type, Types::String);
+
+    let second_param = &params.get(1).expect("Couldn't get the second paramater");
+    let name = &second_param.ident;
+    assert_eq!(name.name, "other");
+    assert_eq!(second_param.r#type.r#type, Types::String);
+
+    let second_param = &params.get(2).expect("Couldn't get the second paramater");
+    let name = &second_param.ident;
+    assert_eq!(name.name, "some");
+    assert_eq!(second_param.r#type.r#type, Types::Array);
+    let generic_i32 = second_param.r#type.generics.get(0).unwrap();
+    assert_eq!(generic_i32.r#type, Types::I32);
+}
+
+#[test]
+fn parsing_functions() {
+    use crate::parser_v2::parser::Parser;
+    let params = "fn name(hello: string, other: string, some: array<i32>) string {
+    let some: string = \"hello world!\";
+    }";
+
+    let mut params = Lexer::new(params);
+    let params = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(params);
+    let function = parser.parse().expect("Coudln't parse function");
+
+    let function = function.body.get(0).expect("Couldn't get node in side body of ast");
+    let NodeTypes::Function(function) = &function.node_type else {
+        panic!("Expected the firtst nody in the ast body to be a function (when parsing a function).");
+    };
+
+    assert_eq!(function.returns.r#type, Types::String);
+
+    let function_let = function.body.get(0).unwrap();
+    let NodeTypes::Variable(func) = &function_let.node_type else {
+        panic!("Expected the firt node type in the function body to be of variable 'let some: string = ...';");
+    };
+    assert_eq!(func.ident.name , "some");
+    assert_eq!(func.var_type.r#type, Types::String);
+}
+
+#[test]
+fn parse_arguments() {
+    use crate::parser_v2::parser::Parser;
+    let args = "(1, 10, \"testing\")";
+
+    let mut params = Tokenizer::new(args);
+    let tokens = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(tokens);
+    let parse = parser.parse_args_expr().unwrap();
+
+    let first_arg = parse.get(0).unwrap();
+    assert_eq!(first_arg.value, TypeValues::I32(1));
+
+    let second_arg = parse.get(1).unwrap();
+    assert_eq!(second_arg.value, TypeValues::I32(10));
+
+    let second_arg = parse.get(2).unwrap();
+    assert_eq!(second_arg.value, TypeValues::String("testing".into()));
+}
+
+#[test]
+fn parse_func_call() {
+    use crate::parser_v2::parser::Parser;
+    let args = "test(1, 10, \"testing\")";
+
+    let mut params = Tokenizer::new(args);
+    let tokens = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(tokens);
+    let parse = parser.parse_fn_call_expr().unwrap();
+
+    let first_arg = parse.0.calls_to.name;
+    assert_eq!(first_arg, "test".to_string());
+
+    let NodeTypes::Arguments(arguments) = parse.1 else {
+        panic!("parse function call expected arguments");
+    };
+
+    let firt_arg = arguments.get(0).unwrap();
+    assert_eq!(firt_arg.value, TypeValues::I32(1));
+
+    let firt_arg = arguments.get(1).unwrap();
+    assert_eq!(firt_arg.value, TypeValues::I32(10));
+        
+    let firt_arg = arguments.get(2).unwrap();
+    assert_eq!(firt_arg.value, TypeValues::String("testing".into()))
 }

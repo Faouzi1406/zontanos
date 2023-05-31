@@ -1,7 +1,7 @@
 //! The Abstract Syntax Tree structure of Zontanos
 #![allow(unused)]
 
-use crate::zon_parser::lexer::Operator;
+use crate::{ast::variable, zon_parser::lexer::Operator};
 
 pub mod types_from_str;
 pub mod types_match;
@@ -36,7 +36,7 @@ pub struct Node {
 #[derive(Debug)]
 pub struct Function {
     pub ident: Ident,
-    pub body: Box<Vec<Node>>,
+    pub body: Vec<Node>,
     pub paramaters: Vec<Paramater>,
     pub returns: Type,
 }
@@ -76,11 +76,11 @@ pub struct Type {
 /// Function paramater containing both the type and the name
 ///
 /// **r#type** the type of paramater
-/// **generics** the name of para
+/// **ident** the identifier of paramater
 #[derive(Debug)]
 pub struct Paramater {
-    r#type: Type,
-    name: String,
+    pub r#type: Type,
+    pub ident: Ident,
 }
 
 /// [`Ident`]
@@ -99,7 +99,7 @@ pub struct Ident {
 /// **value** the value
 #[derive(Debug)]
 pub struct Value {
-    pub r#type: TypeValues,
+    pub value: TypeValues,
 }
 
 /// [`FunctionCall`]
@@ -110,7 +110,6 @@ pub struct Value {
 #[derive(Debug)]
 pub struct FunctionCall {
     pub calls_to: Ident,
-    pub arguments: Vec<Value>,
 }
 
 /// [`Types`]
@@ -125,6 +124,8 @@ pub enum Types {
     String,
     Array,
     Ident,
+    // Should only be used if the type can not be known during parsing.
+    None,
     UnknownType(String),
 }
 
@@ -140,6 +141,7 @@ pub enum TypeValues {
     String(String),
     Array(Vec<TypeValues>),
     Identifier(String),
+    NoneVal(String),
     None
 }
 
@@ -148,12 +150,14 @@ pub enum TypeValues {
 #[derive(Debug)]
 pub enum NodeTypes {
     Program,
+    Block,
     Function(Function),
     Variable(Variable),
     Assignment(Assignment),
     Operator(Operator),
     Value(Value),
     FunctionCall(FunctionCall),
+    Arguments(Vec<Value>),
 }
 
 impl Node {
@@ -164,5 +168,33 @@ impl Node {
             right: None,
             line,
         }
+    }
+
+    pub fn variable(variable: Variable, left_operator: Operator, line: usize) -> Node {
+        let node = Node {
+            node_type: NodeTypes::Variable(variable),
+            left: Some(Box::from(Node::new(
+                NodeTypes::Operator(left_operator),
+                line,
+            ))),
+            right: None,
+            line,
+        };
+        node
+    }
+}
+
+impl Type {
+    pub fn none_type() -> Self {
+        Self {
+            r#type: Types::None,
+            generics: Vec::new(),
+        }
+    }
+}
+
+impl From<TypeValues> for Value {
+    fn from(value: TypeValues) -> Self {
+        Self { value }
     }
 }

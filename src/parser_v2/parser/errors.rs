@@ -19,6 +19,15 @@ impl Parser {
         msg
     }
 
+    pub fn expected_params_openbrace(&mut self) -> String {
+        let current = self.assert_prev_token();
+        let msg = format!(
+            "[Parse Error] Expected a open brace '(' to the paramaters on line {}",
+            current.line
+        );
+        msg
+    }
+
     pub fn expected_array_generic(&mut self) -> String {
         let current = self.assert_prev_token();
         let msg = format!(
@@ -94,7 +103,14 @@ impl Parser {
 
     pub fn invalid_expected_type(&mut self, type_expected: &str, value_received: &str) -> String {
         let msg =
-            format!("[Parse Error] Expected a type of {type_expected} but got {value_received}",);
+            format!("[parse error] Expected a type of {type_expected} but got {value_received}",);
+        msg
+    }
+
+    pub fn expected_body_openbracket(&mut self) -> String {
+        let current_line = self.assert_prev_token();
+        let msg =
+            format!("[parse error] Expected a openbracket to the body of a function '{}<fn_body>{}', line {} ", '{', '}', current_line.line);
         msg
     }
 }
