@@ -516,6 +516,40 @@ fn parse_arguments() {
 }
 
 #[test]
+fn parse_block_expr() {
+    use crate::parser_v2::parser::Parser;
+    let args = "{
+        let some: char = 'a'
+        func(some)
+    }";
+
+    let mut params = Tokenizer::new(args);
+    let tokens = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(tokens);
+    let (body, _) = parser.parse_block_expr().unwrap();
+
+    let NodeTypes::Variable(value) = &body.get(0).unwrap().node_type else {
+        panic!("Couldn't turn value in block into variable");
+    }; 
+    assert_eq!(value.ident.name, "some".to_string());
+    assert_eq!(value.var_type.r#type, Types::Char);
+
+    let value = &body.get(1).unwrap();
+
+    let NodeTypes::FunctionCall(call) = &value.node_type else {
+        panic!("Couldn't turn value in block into function call");
+    };
+    assert_eq!(call.calls_to.name, "func");
+
+    let args = &value.left.as_ref().unwrap();
+    let NodeTypes::Arguments(args) = &args.node_type else {
+        panic!("Couldn't turn value in block into function call");
+    };
+    let arg_1 = args.get(0).unwrap();
+    assert_eq!(arg_1.value, TypeValues::Identifier("some".into()));
+}
+
+#[test]
 fn parse_func_call() {
     use crate::parser_v2::parser::Parser;
     let args = "test(1, 10, \"testing\")";

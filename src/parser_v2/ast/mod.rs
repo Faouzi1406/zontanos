@@ -142,7 +142,7 @@ pub enum TypeValues {
     Array(Vec<TypeValues>),
     Identifier(String),
     NoneVal(String),
-    None
+    None,
 }
 
 /// [`NodeTypes`]
@@ -150,7 +150,7 @@ pub enum TypeValues {
 #[derive(Debug)]
 pub enum NodeTypes {
     Program,
-    Block,
+    Block(Vec<Node>),
     Function(Function),
     Variable(Variable),
     Assignment(Assignment),
@@ -181,6 +181,17 @@ impl Node {
             line,
         };
         node
+    }
+
+    pub fn fn_call(function_call: FunctionCall, arguments: NodeTypes, line: usize) -> Node {
+        let node_type = NodeTypes::FunctionCall(function_call);
+        let arguments = Node::new(arguments, line);
+        Node {
+            node_type,
+            left: Some(Box::from(arguments)),
+            right: None,
+            line,
+        }
     }
 }
 

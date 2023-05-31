@@ -368,6 +368,50 @@ impl Parser {
         }
 
         Err(self.expected_end_expr("argument", ")"))
+
+    }
+
+    /// Returns the block node and the end line
+    pub fn parse_block_expr(&mut self) -> ParseResult<(Vec<Node>, usize)> {
+        let Some(currly_open) = self.next() else {
+            return Err(self.expected_body_openbracket());
+        };
+        assert_eq!(currly_open.token_type, Tokens::OpenCurlyBracket);
+        let mut body = Vec::new();
+
+        while let Some(body_token) = self.next() {
+            match body_token.token_type {
+                Tokens::Kw(Keywords::Let) => {
+                    self.walk_back(1);
+                    let parse_let = self.parse_let_expr()?;
+                    body.push(parse_let)
+                }
+                Tokens::Kw(Keywords::Fn) => {
+                    let parse_fn = self.parse_fn_expr()?;
+                    body.push(parse_fn);
+                }
+                Tokens::OpenBracket => {
+                    let (block, line) = self.parse_block_expr()?;
+                    body.push(Node::new(NodeTypes::Block(block), line))
+                }
+                Tokens::Identifier => {
+                    // Handle re-assignments
+                    self.walk_back(1);
+                    let (func_call, arguments) = self.parse_fn_call_expr()?;
+                    let func_call_node = Node::fn_call(
+                        func_call, arguments, body_token.line);
+                    body.push(func_call_node);
+                }
+                Tokens::CloseCurlyBracket => {
+                    return Ok((body, body_token.line));
+                }
+                _ => return Err(
+                    format!("Found a token that is invalid in the body of a token: {:#?} on line {}", 
+                            body_token.value, body_token.line))
+            }
+        }
+
+        Err(self.expected_end_expr("body", "}"))
     }
 
     /// Returns the function call it self, and it's arguments 
@@ -390,36 +434,9 @@ impl Parser {
         let ident = self.parse_next_ident_expr()?;
         let paramaters = self.parse_params()?;
         let returns = self.parse_type_expr()?;
-        let mut function = Function { returns, ident, body: Vec::new(), paramaters  };
-
-        if !self.consume_if_next(Tokens::OpenCurlyBracket) {
-            return Err(self.expected_body_openbracket());
-        }
-
-        while let Some(body_token) = self.next() {
-            match body_token.token_type {
-                Tokens::Kw(Keywords::Let) => {
-                    self.walk_back(1);
-                    let parse_let = self.parse_let_expr()?;
-                    function.body.push(parse_let)
-                }
-                Tokens::Kw(Keywords::Fn) => {
-                    let parse_fn = self.parse_fn_expr()?;
-                    function.body.push(parse_fn);
-                }
-                Tokens::OpenBracket => {
-                    let parse_block = self.parse_fn_expr()?;
-                    function.body.push(parse_block)
-                }
-                Tokens::CloseCurlyBracket => {
-                    let function_node = Node::new(NodeTypes::Function(function), body_token.line);
-                    return Ok(function_node)
-                }
-                _ => return Err(format!("Found a token that is invalid in the body of a function token: {:#?} on line {}", body_token.value, body_token.line))
-            }
-        }
-
-        Err(self.expected_end_expr("function body", "}"))
+        let (body, line) = self.parse_block_expr()?;
+        let function = Function { returns, ident, body, paramaters  };
+        Ok(Node::new(NodeTypes::Function(function), line))
     }
 }
 
