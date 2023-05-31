@@ -217,24 +217,26 @@ impl Parser {
     /// For example a FunctionCall value will get parsed until the end of the function call ')'
     pub fn parse_value_expr(&mut self, base_type: Type) -> ParseResult<Value> {
         let mut value = Value {
-            r#type: TypeValues::None,
+            value: TypeValues::None,
         };
+
         let expected_type = base_type.r#type.clone();
         let Some(value_expr) = self.next() else {
             return Err(self.invalid_expected_type("value", "none"));
         };
+
         match value_expr.token_type {
             Tokens::Number | Tokens::Char | Tokens::FloatNumber | Tokens::String => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                value.value = expected_type.type_value_convert(&value_expr.value)?;
                 return Ok(value);
             }
             Tokens::OpenBracket => {
                 self.walk_back(1);
-                value.r#type = TypeValues::Array(self.parse_array(base_type)?);
+                value.value = TypeValues::Array(self.parse_array(base_type)?);
                 return Ok(value);
             }
             Tokens::Identifier => {
-                value.r#type = expected_type.type_value_convert(&value_expr.value)?;
+                value.value = expected_type.type_value_convert(&value_expr.value)?;
                 return Ok(value);
             }
             _ => return Err(self.invalid_token_in_expr("value", "value")),
@@ -306,8 +308,75 @@ impl Parser {
         return Err(self.expected_end_expr("paramaters", ")"));
     }
 
-    pub fn parse_function_expr(&mut self) {
+    fn parse_not_know_type_value(&mut self) -> ParseResult<Value> {
+        let Some(value) = self.next() else {
+            //todo fix tis!
+            return Err(self.expected_value_seprator());
+        };
+
+        // we assume defaults here, consider float to be f32, number to be i32, etc.
+        match value.token_type {
+            Tokens::String   => {
+                let none_type = Types::String;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+
+            }
+            Tokens::Char => {
+                let none_type = Types::Char;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+            },
+            Tokens::Number => {
+                let none_type = Types::I32;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+            },
+            Tokens::FloatNumber => {
+                let none_type = Types::F32;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+            },
+            Tokens::Identifier  =>  {
+                let none_type = Types::Ident;
+                let value = none_type.type_value_convert(&value.value)?;
+                Ok(Value { value })
+            }
+            _ => Err(self.invalid_token_in_expr("value", "value"))
+        }
     }
+
+    pub fn parse_args_expr(&mut self) -> ParseResult<Vec<Value>> {
+        // Todo: change this :|
+        assert_eq!(self.next().unwrap().token_type, Tokens::OpenBrace);
+
+        let mut values  = Vec::new();
+
+        while let Some(_) = self.next() {
+            self.walk_back(1);
+            let value =  self.parse_not_know_type_value()?;
+            values.push(value);
+
+            if self.consume_if_next(Tokens::Comma) {
+                continue
+            }
+            if self.consume_if_next(Tokens::CloseBrace) {
+                return Ok(values);
+            }
+
+            return Err(self.expected_end_expr("argument", ")"));
+        }
+
+        Err(self.expected_end_expr("argument", ")"))
+    }
+
+    /// Returns the function call it self, and it's arguments 
+    pub fn parse_fn_call_expr(&mut self) -> ParseResult<(FunctionCall, NodeTypes)> {
+        let ident = self.parse_next_ident_expr()?;
+        let arguments = self.parse_args_expr()?;
+        Ok((FunctionCall { calls_to: ident }, NodeTypes::Arguments(arguments)))
+    }
+ 
 
     /// Parses any valid function statement, starting from the identifier up until the ending close
     /// bracket;

@@ -99,7 +99,7 @@ pub struct Ident {
 /// **value** the value
 #[derive(Debug)]
 pub struct Value {
-    pub r#type: TypeValues,
+    pub value: TypeValues,
 }
 
 /// [`FunctionCall`]
@@ -124,6 +124,8 @@ pub enum Types {
     String,
     Array,
     Ident,
+    // Should only be used if the type can not be known during parsing.
+    None,
     UnknownType(String),
 }
 
@@ -139,7 +141,8 @@ pub enum TypeValues {
     String(String),
     Array(Vec<TypeValues>),
     Identifier(String),
-    None,
+    NoneVal(String),
+    None
 }
 
 /// [`NodeTypes`]
@@ -178,5 +181,20 @@ impl Node {
             line,
         };
         node
+    }
+}
+
+impl Type {
+    pub fn none_type() -> Self {
+        Self {
+            r#type: Types::None,
+            generics: Vec::new(),
+        }
+    }
+}
+
+impl From<TypeValues> for Value {
+    fn from(value: TypeValues) -> Self {
+        Self { value }
     }
 }

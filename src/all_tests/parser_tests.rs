@@ -287,7 +287,7 @@ fn parsing_values_i8() {
             generics: Vec::new(),
         })
         .unwrap();
-    assert_eq!(parse.r#type, TypeValues::I8(20))
+    assert_eq!(parse.value, TypeValues::I8(20))
 }
 
 #[test]
@@ -303,7 +303,7 @@ fn parsing_values_i32() {
             generics: Vec::new(),
         })
         .unwrap();
-    assert_eq!(parse.r#type, TypeValues::I32(20))
+    assert_eq!(parse.value, TypeValues::I32(20))
 }
 
 #[test]
@@ -319,7 +319,7 @@ fn parsing_values_f32() {
             generics: Vec::new(),
         })
         .unwrap();
-    assert_eq!(parse.r#type, TypeValues::F32(20.))
+    assert_eq!(parse.value, TypeValues::F32(20.))
 }
 
 #[test]
@@ -335,7 +335,7 @@ fn parsing_values_string() {
             generics: Vec::new(),
         })
         .unwrap();
-    assert_eq!(parse.r#type, TypeValues::String("hello world!".into()))
+    assert_eq!(parse.value, TypeValues::String("hello world!".into()))
 }
 
 #[test]
@@ -381,7 +381,7 @@ fn parsing_let_exprs() {
     let NodeTypes::Value(op) = &right.node_type else {
         panic!("Parsing right exprs expected the type of right node to be a operator")
     };
-    assert_eq!(op.r#type, TypeValues::String("testing this".into()));
+    assert_eq!(op.value, TypeValues::String("testing this".into()));
 
     let var2 = parse.body.get(1).unwrap();
     let NodeTypes::Variable(var) = &var2.node_type else {
@@ -400,7 +400,7 @@ fn parsing_let_exprs() {
     let NodeTypes::Value(op) = &right.node_type else {
         panic!("Parsing right exprs expected the type of right node to be a operator")
     };
-    assert_eq!(op.r#type, TypeValues::String("Hello world!".into()));
+    assert_eq!(op.value, TypeValues::String("Hello world!".into()));
 
     let var3 = parse.body.get(2).unwrap();
     let NodeTypes::Variable(var) = &var3.node_type else {
@@ -413,7 +413,7 @@ fn parsing_let_exprs() {
     let NodeTypes::Value(op) = &right.node_type else {
         panic!("Parsing right exprs expected the type of right node to be a operator")
     };
-    assert_eq!(op.r#type, TypeValues::Array(vec![TypeValues::I32(1), TypeValues::I32(2), TypeValues::I32(3)]));
+    assert_eq!(op.value, TypeValues::Array(vec![TypeValues::I32(1), TypeValues::I32(2), TypeValues::I32(3)]));
 }
 
 #[test]
@@ -478,12 +478,7 @@ fn parsing_functions() {
     let mut params = Lexer::new(params);
     let params = Tokenizer::lex(&mut params);
     let mut parser = Parser::new(params);
-    let function = parser.parse().expect("
-                                         You shouldn't panic, 
-                                         and yet you did, 
-                                         I see you as a failure.
-                                         yours truly,
-                                         Me( the thing that parses a function (ask old you or someting) )");
+    let function = parser.parse().expect("Coudln't parse function");
 
     let function = function.body.get(0).expect("Couldn't get node in side body of ast");
     let NodeTypes::Function(function) = &function.node_type else {
@@ -498,4 +493,24 @@ fn parsing_functions() {
     };
     assert_eq!(func.ident.name , "some");
     assert_eq!(func.var_type.r#type, Types::String);
+}
+
+#[test]
+fn parse_arguments() {
+    use crate::parser_v2::parser::Parser;
+    let args = "(1, 10, \"testing\")";
+
+    let mut params = Tokenizer::new(args);
+    let tokens = Tokenizer::lex(&mut params);
+    let mut parser = Parser::new(tokens);
+    let parse = parser.parse_args_expr().unwrap();
+
+    let first_arg = parse.get(0).unwrap();
+    assert_eq!(first_arg.value, TypeValues::I32(1));
+
+    let second_arg = parse.get(1).unwrap();
+    assert_eq!(second_arg.value, TypeValues::I32(10));
+
+    let second_arg = parse.get(2).unwrap();
+    assert_eq!(second_arg.value, TypeValues::String("testing".into()));
 }

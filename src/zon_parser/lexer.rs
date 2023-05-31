@@ -584,6 +584,7 @@ impl Tokenize for Tokenizer {
 
 pub trait Lexer {
     fn new(chars: &str) -> Self;
+
     fn lex(tokenizer: &mut Tokenizer) -> Vec<Token> {
         let mut tokens: Vec<Token> = Vec::new();
         let mut line: usize = 0;

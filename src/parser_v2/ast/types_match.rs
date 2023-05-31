@@ -53,6 +53,12 @@ impl Types {
                 };
                 Ok(TypeValues::Char(value))
             }
+            Self::Ident => {
+                Ok(TypeValues::Identifier(value.into()))
+            }
+            Self::None => {
+                Ok(TypeValues::NoneVal(value.into()))
+            }
             not_supported_conversion => panic!(
                 "Type value conversion shouldn't get called on type {not_supported_conversion:#?}"
             ),
