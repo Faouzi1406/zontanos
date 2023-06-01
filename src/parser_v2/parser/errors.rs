@@ -113,4 +113,16 @@ impl Parser {
             format!("[parse error] Expected a openbracket to the body of a function '{}<fn_body>{}', line {} ", '{', '}', current_line.line);
         msg
     }
+
+    pub fn not_supported_array_in_array(&mut self) -> String {
+        let array_value = self.assert_prev_token();
+        let msg = format!("Altough supporting arrays in arrays is planned it is currently not supported, found ']' in array on line {}", array_value.line);
+        return  msg
+    }
+
+    pub fn expected_array_size(&mut self) -> String {
+        let array_value = self.assert_prev_token();
+        let msg = format!("Pleas specify the size of array on line: {}; example: char[S]; where S is the Size", array_value.line);
+        return  msg
+    }
 }

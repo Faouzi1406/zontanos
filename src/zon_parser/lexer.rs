@@ -37,14 +37,8 @@ pub enum Tokens {
     Slash,
     /// .
     Dot,
-    /// +
-    Plus,
-    /// -
-    Min,
     /// A tab
     Tab,
-    /// *
-    Times,
     /// (
     OpenBrace,
     /// )
@@ -88,6 +82,12 @@ pub enum Operator {
     OrOr,
     /// !=
     Nq,
+    /// +
+    Plus,
+    /// -
+    Min,
+    /// *
+    Times
 }
 
 #[derive(Debug, PartialEq, Clone)]

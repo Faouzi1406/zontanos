@@ -69,6 +69,8 @@ pub struct Assignment {
 #[derive(Clone, Debug)]
 pub struct Type {
     pub r#type: Types,
+    pub is_array: bool,
+    pub size: u32,
     pub generics: Vec<Type>,
 }
 
@@ -142,7 +144,7 @@ pub enum TypeValues {
     Array(Vec<TypeValues>),
     Identifier(String),
     NoneVal(String),
-    None
+    None,
 }
 
 /// [`NodeTypes`]
@@ -150,7 +152,7 @@ pub enum TypeValues {
 #[derive(Debug)]
 pub enum NodeTypes {
     Program,
-    Block,
+    Block(Vec<Node>),
     Function(Function),
     Variable(Variable),
     Assignment(Assignment),
@@ -158,6 +160,7 @@ pub enum NodeTypes {
     Value(Value),
     FunctionCall(FunctionCall),
     Arguments(Vec<Value>),
+    Return(Value)
 }
 
 impl Node {
@@ -182,12 +185,25 @@ impl Node {
         };
         node
     }
+
+    pub fn fn_call(function_call: FunctionCall, arguments: NodeTypes, line: usize) -> Node {
+        let node_type = NodeTypes::FunctionCall(function_call);
+        let arguments = Node::new(arguments, line);
+        Node {
+            node_type,
+            left: Some(Box::from(arguments)),
+            right: None,
+            line,
+        }
+    }
 }
 
 impl Type {
     pub fn none_type() -> Self {
         Self {
             r#type: Types::None,
+            is_array: false,
+            size: 0,
             generics: Vec::new(),
         }
     }

@@ -1,17 +1,16 @@
 mod all_tests;
 mod ast;
 mod codegen;
-mod zon_parser;
 mod parser_v2;
+mod zon_parser;
 
-use crate::{
-    codegen::CodeGen,
-    zon_parser::{
-        lexer::{Lexer, Tokenizer},
-        parser::parser::Parser,
-    },
-};
-use std::{fs, io::Write};
+use inkwell::context::Context;
+use zontanos::parser_v2::parser::Parser;
+use zontanos::codegen_v2::CodeGen;
+
+use zontanos::zon_parser::lexer::{Lexer, Tokenizer};
+use std::fs;
+use std::io::Write;
 
 fn main() -> Result<(), &'static str> {
     let string_vars = fs::read_to_string("./test_code/main.zon").unwrap_or(
@@ -26,18 +25,28 @@ fn main() -> Result<(), &'static str> {
     // Parsing
     let mut parser = Parser::new(lex);
     let ast = parser.parse();
-    let ast = ast.as_ref().unwrap();
+    let ast = ast.unwrap();
+    println!("{:#?}", ast);
 
-    let code_gen = CodeGen::compile_default(ast);
-    let ok = code_gen.unwrap();
+    let context = Context::create();
+    let builder = context.create_builder();
+    let module = context.create_module("main");
+    let codegen = CodeGen {
+        module,
+        builder,
+        context: &context
+    };
+
+    let code_gen = codegen.compile_ast(&ast);
+    code_gen.unwrap();
 
     let create = fs::File::create("./main.l");
     if let Ok(mut file) = create {
-        let Ok(_) = file.write(ok.as_bytes()) else {
-            return Err("Coulnd't write output to file");
-        };
+      let Ok(_) = file.write(codegen.module.to_string().as_bytes()) else {
+        return Err("Coulnd't write output to file");
+    };
         return Ok(());
     };
 
-    return Err("Coulnd't create file and compile");
+    return Ok(());
 }
