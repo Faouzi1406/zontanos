@@ -10,6 +10,7 @@ use zontanos::codegen_v2::CodeGen;
 
 use zontanos::zon_parser::lexer::{Lexer, Tokenizer};
 use std::fs;
+use std::io::Write;
 
 fn main() -> Result<(), &'static str> {
     let string_vars = fs::read_to_string("./test_code/main.zon").unwrap_or(
@@ -33,18 +34,19 @@ fn main() -> Result<(), &'static str> {
     let codegen = CodeGen {
         module,
         builder,
+        context: &context
     };
 
-    let code_gen = codegen.compile_ast(&ast, &context);
-    let ok = code_gen.unwrap();
+    let code_gen = codegen.compile_ast(&ast);
+    code_gen.unwrap();
 
-    //let create = fs::File::create("./main.l");
-    //if let Ok(mut file) = create {
-    //  let Ok(_) = file.write(ok.as_bytes()) else {
-    //return Err("Coulnd't write output to file");
-    //};
-    //return Ok(());
-    //};
+    let create = fs::File::create("./main.l");
+    if let Ok(mut file) = create {
+      let Ok(_) = file.write(codegen.module.to_string().as_bytes()) else {
+        return Err("Coulnd't write output to file");
+    };
+        return Ok(());
+    };
 
     return Ok(());
 }

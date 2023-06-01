@@ -5,10 +5,12 @@
 pub mod errors;
 pub mod math;
 
-use super::ast::{Ast, FunctionCall, Ident, Node, Paramater, Type, Types, Value, Variable, Assignment};
+use super::ast::{
+    Assignment, Ast, FunctionCall, Ident, Node, Paramater, Type, Types, Value, Variable,
+};
 use crate::{
     parser_v2::ast::{Function, NodeTypes, TypeValues},
-    zon_parser::lexer::{Keywords, Operator, Token, Tokens}
+    zon_parser::lexer::{Keywords, Operator, Token, Tokens},
 };
 
 pub struct Parser {
@@ -117,10 +119,14 @@ impl Parser {
                 }
                 Tokens::OpenBracket => {
                     generic_type.is_array = true;
-                    if !self.consume_if_next(Tokens::Number) { return Err(self.expected_array_size()) }
+                    if !self.consume_if_next(Tokens::Number) {
+                        return Err(self.expected_array_size());
+                    }
                     let size = self.assert_prev_token();
                     generic_type.size = size.value.parse().unwrap();
-                    if !self.consume_if_next(Tokens::CloseBracket) { return Err(self.expected_end_expr("array type", "]")) }
+                    if !self.consume_if_next(Tokens::CloseBracket) {
+                        return Err(self.expected_end_expr("array type", "]"));
+                    }
                 }
                 Tokens::Comma => {
                     if generic_type.r#type == Types::UnknownType("".into()) {
@@ -158,7 +164,7 @@ impl Parser {
             r#type: Types::from(base_type.value.as_str()),
             generics: Vec::new(),
             is_array: false,
-            size: 0
+            size: 0,
         };
 
         if self.consume_if_next(Tokens::OpenBracket) {
@@ -169,9 +175,8 @@ impl Parser {
 
                 if !self.consume_if_next(Tokens::CloseBracket) {
                     return Err(self.expected_end_expr("array type", "]"));
-                } 
-            }
-            else {
+                }
+            } else {
                 return Err(self.expected_array_size());
             }
         }
@@ -201,7 +206,7 @@ impl Parser {
         if !self.consume_if_next(Tokens::OpenBracket) {
             return Err(
                 "Parse array should only get called if the next token is a open bracket."
-                .to_string(),
+                    .to_string(),
             );
         }
 
@@ -323,6 +328,9 @@ impl Parser {
         };
 
         let mut params = Vec::new();
+        if self.consume_if_next(Tokens::CloseBrace) {
+            return Ok(params);
+        }
 
         while let Some(_next_param) = self.next() {
             self.walk_back(1);
@@ -413,7 +421,7 @@ impl Parser {
 
     pub fn parse_reassignment_expr(&mut self) -> ParseResult<Node> {
         let assigns_to = self.parse_next_ident_expr()?;
-        if let Some(token) = self.next()  {
+        if let Some(token) = self.next() {
             if let Tokens::Op(op) = token.token_type {
                 let value = self.parse_not_know_type_value()?;
                 let assignment = Assignment { assigns_to };
@@ -421,11 +429,11 @@ impl Parser {
                     node_type: NodeTypes::Assignment(assignment),
                     right: Some(Box::new(Node::new(NodeTypes::Value(value), token.line))),
                     left: Some(Box::new(Node::new(NodeTypes::Operator(op), token.line))),
-                    line: token.line
+                    line: token.line,
                 };
-                return Ok(node)
+                return Ok(node);
             }
-        } 
+        }
         Err(self.expected_assign_token())
     }
 

@@ -1,3 +1,9 @@
-fn name(hello: string, other: string) string[12] {
-        let some: string[12] = \"hello world!\";
+fn name() string[12] {
+	let some: string[2] = "he"
+	return "hello world!"
+}
+
+fn main() i32 {
+	let some: string[12] = "Hello world!"
+	return 0
 }
