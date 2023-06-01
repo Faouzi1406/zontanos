@@ -42,7 +42,7 @@ impl<'ctx> CodeGen<'ctx> {
             match node {
                 Expr::Block(block) => {
                     return Err(
-                        format!("Tried creating a block with no scope, is not allowed.").into(),
+                        "Tried creating a block with no scope, is not allowed.".into(),
                     )
                 }
                 Expr::Logic(logic) => {}

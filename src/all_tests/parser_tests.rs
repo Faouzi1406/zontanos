@@ -282,8 +282,10 @@ fn parsing_values_i8() {
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
-        .parse_value_expr(Type {
+        .parse_value_expr(&Type {
             r#type: Types::I8,
+            is_array: false,
+            size: 0,
             generics: Vec::new(),
         })
         .unwrap();
@@ -298,8 +300,10 @@ fn parsing_values_i32() {
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
-        .parse_value_expr(Type {
+        .parse_value_expr(&Type {
             r#type: Types::I32,
+            is_array: false,
+            size: 0,
             generics: Vec::new(),
         })
         .unwrap();
@@ -314,8 +318,10 @@ fn parsing_values_f32() {
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
-        .parse_value_expr(Type {
+        .parse_value_expr(&Type {
             r#type: Types::F32,
+            is_array: false,
+            size: 0,
             generics: Vec::new(),
         })
         .unwrap();
@@ -330,8 +336,10 @@ fn parsing_values_string() {
     let ident = Tokenizer::lex(&mut tokens);
     let mut parser = Parser::new(ident);
     let parse = parser
-        .parse_value_expr(Type {
+        .parse_value_expr(&Type {
             r#type: Types::String,
+            is_array: false,
+            size: 0,
             generics: Vec::new(),
         })
         .unwrap();
@@ -357,7 +365,7 @@ fn parsing_let_expr() {
 fn parsing_let_exprs() {
     use crate::parser_v2::parser::Parser;
     let ident_str = "let test:string = \"testing this\" 
-        let other:string = \"Hello world!\"
+        let other: string[12] = \"Hello world!\"
         let some: array<i32> = [1, 2, 3]";
     let mut tokens = Lexer::new(ident_str);
     let var = Tokenizer::lex(&mut tokens); //     println!("tokens {:#?}", var);
@@ -387,6 +395,8 @@ fn parsing_let_exprs() {
     let NodeTypes::Variable(var) = &var2.node_type else {
         panic!("Parsing let exprs expected the type of node to be a variable")
     };
+    assert!(var.var_type.is_array);
+    assert_eq!(var.var_type.size, 12);
     assert_eq!(var.ident.name, "other");
     assert_eq!(var.var_type.r#type, Types::String);
 
@@ -413,7 +423,14 @@ fn parsing_let_exprs() {
     let NodeTypes::Value(op) = &right.node_type else {
         panic!("Parsing right exprs expected the type of right node to be a operator")
     };
-    assert_eq!(op.value, TypeValues::Array(vec![TypeValues::I32(1), TypeValues::I32(2), TypeValues::I32(3)]));
+    assert_eq!(
+        op.value,
+        TypeValues::Array(vec![
+            TypeValues::I32(1),
+            TypeValues::I32(2),
+            TypeValues::I32(3)
+        ])
+    );
 }
 
 #[test]
@@ -431,7 +448,7 @@ fn parsing_arrays() {
     let var = Tokenizer::lex(&mut tokens);
 
     let mut parser = Parser::new(var);
-    let parse = parser.parse_array(type_array).unwrap();
+    let parse = parser.parse_array(&type_array).unwrap();
     assert_eq!(parse.get(0), Some(&TypeValues::Char('a')));
     assert_eq!(parse.get(1), Some(&TypeValues::Char('b')));
     assert_eq!(parse.get(2), Some(&TypeValues::Char('c')));
@@ -447,7 +464,10 @@ fn parsing_paramaters() {
     let mut parser = Parser::new(params);
     let params = parser.parse_params().expect("Couldn't unwrap on params?");
 
-    let first_param = &params.get(0).expect("Couldn't get the first paramater").r#type;
+    let first_param = &params
+        .get(0)
+        .expect("Couldn't get the first paramater")
+        .r#type;
     assert_eq!(first_param.r#type, Types::String);
 
     let second_param = &params.get(0).expect("Couldn't get the second paramater");
@@ -472,7 +492,7 @@ fn parsing_paramaters() {
 fn parsing_functions() {
     use crate::parser_v2::parser::Parser;
     let params = "fn name(hello: string, other: string, some: array<i32>) string {
-    let some: string = \"hello world!\";
+        let some: string = \"hello world!\";
     }";
 
     let mut params = Lexer::new(params);
@@ -480,7 +500,10 @@ fn parsing_functions() {
     let mut parser = Parser::new(params);
     let function = parser.parse().expect("Coudln't parse function");
 
-    let function = function.body.get(0).expect("Couldn't get node in side body of ast");
+    let function = function
+        .body
+        .get(0)
+        .expect("Couldn't get node in side body of ast");
     let NodeTypes::Function(function) = &function.node_type else {
         panic!("Expected the firtst nody in the ast body to be a function (when parsing a function).");
     };
@@ -491,7 +514,7 @@ fn parsing_functions() {
     let NodeTypes::Variable(func) = &function_let.node_type else {
         panic!("Expected the firt node type in the function body to be of variable 'let some: string = ...';");
     };
-    assert_eq!(func.ident.name , "some");
+    assert_eq!(func.ident.name, "some");
     assert_eq!(func.var_type.r#type, Types::String);
 }
 
@@ -521,16 +544,17 @@ fn parse_block_expr() {
     let args = "{
         let some: char = 'a'
         func(some)
+        return 10
     }";
 
     let mut params = Tokenizer::new(args);
     let tokens = Tokenizer::lex(&mut params);
     let mut parser = Parser::new(tokens);
-    let (body, _) = parser.parse_block_expr().unwrap();
+    let (body, _) = parser.parse_block_expr(&Type { r#type: Types::I32, is_array: false, size: 0, generics: Vec::new() }).unwrap();
 
     let NodeTypes::Variable(value) = &body.get(0).unwrap().node_type else {
         panic!("Couldn't turn value in block into variable");
-    }; 
+    };
     assert_eq!(value.ident.name, "some".to_string());
     assert_eq!(value.var_type.r#type, Types::Char);
 
@@ -547,6 +571,11 @@ fn parse_block_expr() {
     };
     let arg_1 = args.get(0).unwrap();
     assert_eq!(arg_1.value, TypeValues::Identifier("some".into()));
+
+    let NodeTypes::Return(value) = &body.get(2).unwrap().node_type else {
+        panic!("Couldn't turn value in block into return value");
+    };
+    assert_eq!(value.value, TypeValues::I32(10))
 }
 
 #[test]
@@ -571,7 +600,7 @@ fn parse_func_call() {
 
     let firt_arg = arguments.get(1).unwrap();
     assert_eq!(firt_arg.value, TypeValues::I32(10));
-        
+
     let firt_arg = arguments.get(2).unwrap();
     assert_eq!(firt_arg.value, TypeValues::String("testing".into()))
 }

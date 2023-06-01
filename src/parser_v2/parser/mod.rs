@@ -8,7 +8,7 @@ pub mod math;
 use super::ast::{Ast, FunctionCall, Ident, Node, Paramater, Type, Types, Value, Variable, Assignment};
 use crate::{
     parser_v2::ast::{Function, NodeTypes, TypeValues},
-    zon_parser::lexer::{Keywords, Operator, Token, Tokens},
+    zon_parser::lexer::{Keywords, Operator, Token, Tokens}
 };
 
 pub struct Parser {
@@ -102,6 +102,8 @@ impl Parser {
         assert!(self.assert_prev_token().token_type == Tokens::Op(Operator::Less));
         let mut generic_type = Type {
             r#type: Types::UnknownType("".into()),
+            is_array: false,
+            size: 0,
             generics: Vec::new(),
         };
 
@@ -112,6 +114,13 @@ impl Parser {
                         return Err(self.expected_type_seperator());
                     }
                     generic_type.r#type = Types::from(generic.value.as_str());
+                }
+                Tokens::OpenBracket => {
+                    generic_type.is_array = true;
+                    if !self.consume_if_next(Tokens::Number) { return Err(self.expected_array_size()) }
+                    let size = self.assert_prev_token();
+                    generic_type.size = size.value.parse().unwrap();
+                    if !self.consume_if_next(Tokens::CloseBracket) { return Err(self.expected_end_expr("array type", "]")) }
                 }
                 Tokens::Comma => {
                     if generic_type.r#type == Types::UnknownType("".into()) {
@@ -148,7 +157,24 @@ impl Parser {
         let mut base_type = Type {
             r#type: Types::from(base_type.value.as_str()),
             generics: Vec::new(),
+            is_array: false,
+            size: 0
         };
+
+        if self.consume_if_next(Tokens::OpenBracket) {
+            base_type.is_array = true;
+            if self.consume_if_next(Tokens::Number) {
+                let value = self.assert_prev_token();
+                base_type.size = value.value.parse().unwrap();
+
+                if !self.consume_if_next(Tokens::CloseBracket) {
+                    return Err(self.expected_end_expr("array type", "]"));
+                } 
+            }
+            else {
+                return Err(self.expected_array_size());
+            }
+        }
 
         if self.consume_if_next(Tokens::Op(Operator::Less)) {
             self.parse_generics_expr(&mut base_type)?;
@@ -166,7 +192,7 @@ impl Parser {
     ///
     /// **It goes one type deep: array<T>; so it will not see array<array<T>>, altough if we start
     /// introducing more complex types, this could be a posibility**
-    pub fn parse_array(&mut self, base_type: Type) -> ParseResult<Vec<TypeValues>> {
+    pub fn parse_array(&mut self, base_type: &Type) -> ParseResult<Vec<TypeValues>> {
         let mut array_items: Vec<TypeValues> = Vec::new();
         let Some(inner_array_type)  = base_type.generics.get(0) else {
             return Err(self.expected_array_generic());
@@ -175,7 +201,7 @@ impl Parser {
         if !self.consume_if_next(Tokens::OpenBracket) {
             return Err(
                 "Parse array should only get called if the next token is a open bracket."
-                    .to_string(),
+                .to_string(),
             );
         }
 
@@ -222,7 +248,7 @@ impl Parser {
     /// Expects the next token to be value
     /// Parses until a end to the value is found depending on the first token;
     /// For example a FunctionCall value will get parsed until the end of the function call ')'
-    pub fn parse_value_expr(&mut self, base_type: Type) -> ParseResult<Value> {
+    pub fn parse_value_expr(&mut self, base_type: &Type) -> ParseResult<Value> {
         let mut value = Value {
             value: TypeValues::None,
         };
@@ -276,7 +302,7 @@ impl Parser {
                 Operator::Eq,
                 next_token.line,
             );
-            let variable_value = self.parse_value_expr(var_type)?;
+            let variable_value = self.parse_value_expr(&var_type)?;
             node.right = Some(Box::from(Node::new(
                 NodeTypes::Value(variable_value),
                 next_token.line,
@@ -404,7 +430,7 @@ impl Parser {
     }
 
     /// Returns the block node and the end line
-    pub fn parse_block_expr(&mut self) -> ParseResult<(Vec<Node>, usize)> {
+    pub fn parse_block_expr(&mut self, type_expected: &Type) -> ParseResult<(Vec<Node>, usize)> {
         let Some(currly_open) = self.next() else {
             return Err(self.expected_body_openbracket());
         };
@@ -423,7 +449,7 @@ impl Parser {
                     body.push(parse_fn);
                 }
                 Tokens::OpenBracket => {
-                    let (block, line) = self.parse_block_expr()?;
+                    let (block, line) = self.parse_block_expr(type_expected)?;
                     body.push(Node::new(NodeTypes::Block(block), line))
                 }
                 Tokens::Identifier => {
@@ -436,6 +462,11 @@ impl Parser {
                 Tokens::CloseCurlyBracket => {
                     return Ok((body, body_token.line));
                 }
+                Tokens::Kw(Keywords::Return) => {
+                    let returns = self.parse_return_value(type_expected)?;
+                    let return_node = Node::new(returns, body_token.line);
+                    body.push(return_node);
+                }
                 _ => {
                     return Err(format!(
                         "Found a token that is invalid in the body of a token: {:#?} on line {}",
@@ -446,6 +477,11 @@ impl Parser {
         }
 
         Err(self.expected_end_expr("body", "}"))
+    }
+
+    pub fn parse_return_value(&mut self, type_expected: &Type) -> ParseResult<NodeTypes> {
+        let value = self.parse_value_expr(type_expected)?;
+        Ok(NodeTypes::Return(value))
     }
 
     /// Returns the function call it self, and it's arguments
@@ -470,7 +506,7 @@ impl Parser {
         let ident = self.parse_next_ident_expr()?;
         let paramaters = self.parse_params()?;
         let returns = self.parse_type_expr()?;
-        let (body, line) = self.parse_block_expr()?;
+        let (body, line) = self.parse_block_expr(&returns)?;
         let function = Function {
             returns,
             ident,

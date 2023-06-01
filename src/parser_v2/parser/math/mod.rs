@@ -1,62 +1,33 @@
-use crate::parser_v2::parser::Operator;
 use std::mem::swap;
 
-use crate::zon_parser::lexer::Tokens;
+use crate::zon_parser::lexer::{Operator, Tokens};
 
 use super::Parser;
 
-#[derive(Clone, Debug)]
-pub struct Stack {
-    value: Option<Tokens>,
-    head: Option<Box<Stack>>,
-    next: Option<Box<Stack>>,
+#[derive(Debug)]
+pub struct Stack<T> {
+    value: Option<T>,
+    head: Option<Box<Stack<T>>>,
+    next: Option<Box<Stack<T>>>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Que {
-    pub value: Option<Tokens>,
-    pub next: Option<Box<Que>>,
-}
-
-impl Que {
-    pub fn init() -> Self {
+impl<T> Clone for Stack<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
         Self {
-            value: None,
-            next: None,
+            value: self.value.clone(),
+            head: self.head.clone(),
+            next: self.next.clone(),
         }
-    }
-
-    pub fn new(value: Tokens) -> Self {
-        Self {
-            value: Some(value),
-            next: None,
-        }
-    }
-
-    pub fn append(&mut self, value: Tokens) {
-        if self.value.is_none() {
-            self.value = Some(value);
-            return;
-        }
-
-        if self.next.is_some() {
-            return self.next.as_mut().unwrap().append(value);
-        }
-
-        let value = Box::new(Que::new(value));
-        self.next = Some(value);
-    }
-
-    pub fn pop(&mut self) -> Tokens { 
-        let prev = &self;
-        let value = self;
-        while let Some(value) = &mut value.next {
-        };
-        todo!()
     }
 }
 
-impl Stack {
+impl<T> Stack<T>
+where
+    T: Clone,
+{
     pub fn init() -> Self {
         Self {
             value: None,
@@ -64,7 +35,8 @@ impl Stack {
             next: None,
         }
     }
-    pub fn new(value: Tokens) -> Self {
+
+    pub fn new(value: T) -> Self {
         Self {
             value: Some(value),
             head: None,
@@ -72,7 +44,7 @@ impl Stack {
         }
     }
 
-    pub fn push(&mut self, value: Tokens) {
+    pub fn push(&mut self, value: T) {
         if self.value.is_none() {
             self.value = Some(value);
             return;
@@ -83,12 +55,12 @@ impl Stack {
         self.next = Some(Box::new(Self::new(value)));
     }
 
-    pub fn pop(&mut self) -> Option<Tokens> {
-        let value = self.value?;
+    pub fn pop(&mut self) -> Option<T> {
+        let value = self.value.clone()?;
 
         if self.next.is_some() {
             let next = self.next.as_mut().unwrap();
-            self.value = next.value;
+            self.value = next.value.clone();
 
             let mut next = next.next.clone();
             if self.next.as_ref().unwrap().next.is_some() {
@@ -103,16 +75,33 @@ impl Stack {
             return Some(value);
         }
     }
+
+    pub fn current(&mut self) -> &Option<T> {
+        &self.value
+    }
+
+    pub fn peak(&mut self) -> &Option<T> {
+        let Some(next) = self.next.as_ref() else {return &None};
+        &next.value
+    }
 }
 
 impl Parser {
     // Expects all values to be numbers or operators :)
     pub fn shunting_yard_parse_math_expr(&mut self) {
-        let stack = Stack::init();
-        let que = Que::init();
+        todo!("Write this!");
+        let mut num_stack: Stack<i32> = Stack::init();
+        let op_stack: Stack<Operator> = Stack::init();
+
         while let Some(token) = self.next() {
             match token.token_type {
-                Tokens::Number => {}
+                Tokens::Number => {
+                    // Todo: Unwrap for now, this is a quick first implementation
+                    num_stack.push(token.value.parse().unwrap());
+                }
+                Tokens::Op(Operator::Plus) => {}
+                Tokens::Op(Operator::Times) => {}
+                Tokens::Op(_) => {}
                 _ => return,
             }
         }

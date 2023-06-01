@@ -1,10 +1,3 @@
-fn other(string x, i32 value) i32 {
-	let some_print: i32 = printf("Other just got called %s %d %c",  x, value,  '\n')
-	return add(value, 20)
+fn name(hello: string, other: string) string[12] {
+        let some: string[12] = \"hello world!\";
 }
-
-fn main() i32 {
-	let some_value: i32 = other("hello wolrd!", 30)
-	let this: i32 = printf("some_value = %d %c", some_value, '\n')
-	return other("testing", 20)
-} 

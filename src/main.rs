@@ -4,15 +4,11 @@ mod codegen;
 mod parser_v2;
 mod zon_parser;
 
-use parser_v2::parser::math::Que;
+use inkwell::context::Context;
+use zontanos::parser_v2::parser::Parser;
+use zontanos::codegen_v2::CodeGen;
 
-use crate::{
-    codegen::CodeGen,
-    zon_parser::{
-        lexer::{Lexer, Tokenizer},
-        parser::parser::Parser,
-    },
-};
+use zontanos::zon_parser::lexer::{Lexer, Tokenizer};
 use std::fs;
 
 fn main() -> Result<(), &'static str> {
@@ -28,9 +24,18 @@ fn main() -> Result<(), &'static str> {
     // Parsing
     let mut parser = Parser::new(lex);
     let ast = parser.parse();
-    let ast = ast.as_ref().unwrap();
+    let ast = ast.unwrap();
+    println!("{:#?}", ast);
 
-    let code_gen = CodeGen::compile_default(ast);
+    let context = Context::create();
+    let builder = context.create_builder();
+    let module = context.create_module("main");
+    let codegen = CodeGen {
+        module,
+        builder,
+    };
+
+    let code_gen = codegen.compile_ast(&ast, &context);
     let ok = code_gen.unwrap();
 
     //let create = fs::File::create("./main.l");
@@ -40,18 +45,6 @@ fn main() -> Result<(), &'static str> {
     //};
     //return Ok(());
     //};
-
-    //let mut stack = Stack::init();
-    //stack.push(10);
-    //stack.push(40);
-
-    let mut que = Que::init();
-    que.append(10);
-    que.append(30);
-    que.append(50);
-    que.append(69);
-    que.append(100);
-    println!("{:#?}", que);
 
     return Ok(());
 }
