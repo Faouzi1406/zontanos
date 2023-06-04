@@ -31,10 +31,11 @@ fn main() -> Result<(), &'static str> {
     let context = Context::create();
     let builder = context.create_builder();
     let module = context.create_module("main");
-    let codegen = CodeGen {
+    let mut codegen = CodeGen {
         module,
         builder,
-        context: &context
+        context: &context,
+        scope: None
     };
 
     let code_gen = codegen.compile_ast(&ast);

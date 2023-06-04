@@ -1,9 +1,9 @@
-fn name() string[12] {
+fn name(name: i32, other: u8[12]) i32 {
 	let some: string[2] = "he"
-	return "hello world!"
+	return 10
 }
 
 fn main() i32 {
-	let some: string[12] = "Hello world!"
-	return 0
+	let some: i32 = name(20, "Hello world!")
+	return 10
 }

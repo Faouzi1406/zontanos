@@ -89,7 +89,7 @@ pub struct Paramater {
 /// Identifier of a value
 ///
 /// **r#name** the name of that value
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Ident {
     pub name: String,
 }
@@ -109,7 +109,7 @@ pub struct Value {
 ///
 /// **r#calls_to** the Ident of the function being called upon
 /// **arguments** all the arguments found in the function call
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FunctionCall {
     pub calls_to: Ident,
 }
@@ -141,6 +141,7 @@ pub enum TypeValues {
     F32(f32),
     Char(char),
     String(String),
+    FunctionCall(FunctionCall),
     Array(Vec<TypeValues>),
     Identifier(String),
     NoneVal(String),
@@ -160,7 +161,7 @@ pub enum NodeTypes {
     Value(Value),
     FunctionCall(FunctionCall),
     Arguments(Vec<Value>),
-    Return(Value)
+    Return
 }
 
 impl Node {
@@ -212,5 +213,20 @@ impl Type {
 impl From<TypeValues> for Value {
     fn from(value: TypeValues) -> Self {
         Self { value }
+    }
+}
+
+impl FunctionCall {
+    /// Gets the arguments of a function call node, expecting them to be on the left node, if they
+    /// are not there None is returned.
+    ///
+    /// **Important to note: If the arguments are placed incorrectly during parsing it will result in this function always returning None, 
+    /// it is therefore pivotal that the arguments of a function call are always placed in the
+    /// left node.**
+    pub fn get_args<'ctx>(&self, from: &'ctx Node) -> Option<&'ctx Vec<Value>> {
+        let NodeTypes::Arguments(args) = &from.left.as_ref()?.node_type else {
+            return None;
+        };
+        Some(args)
     }
 }

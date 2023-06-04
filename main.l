@@ -1,16 +1,15 @@
 ; ModuleID = 'main'
 source_filename = "main"
 
-define [12 x i8] @name() {
+define i32 @name(i32 %0, [12 x i8] %1) {
 entry:
   %some = alloca [2 x i8], align 1
   store [2 x i8] c"he", [2 x i8]* %some, align 1
-  ret [12 x i8] c"hello world!"
+  ret i32 10
 }
 
 define i32 @main() {
 entry:
-  %some = alloca [12 x i8], align 1
-  store [12 x i8] c"Hello world!", [12 x i8]* %some, align 1
-  ret i32 0
+  %some = call i32 @name(i32 20, [12 x i8] c"Hello world!")
+  ret i32 10
 }
