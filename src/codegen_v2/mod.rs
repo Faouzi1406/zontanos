@@ -47,13 +47,17 @@ impl<'ctx> CodeGen<'ctx> {
                 .module
                 .add_function(&func.ident.name, return_type, None))
         } else {
-            let return_type = self.gen_type(&func.returns)?;
             let params = self.gen_params(&func.paramaters)?;
-            let return_type = return_type.fn_type(&params, false);
+            if let Ok(return_type) = self.gen_type(&func.returns) { 
+                let return_type = return_type.fn_type(&params, false);
+                return Ok(self
+                    .module
+                    .add_function(&func.ident.name, return_type, None))
+            }
             Ok(self
                 .module
-                .add_function(&func.ident.name, return_type, None))
-        }
+                .add_function(&func.ident.name, self.context.void_type().fn_type(&params, false), None))
+            }
     }
 
     fn gen_block(
@@ -93,35 +97,42 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn gen_return(&self, return_node: &'ctx Node) -> CompileResult<()> {
         let Some(value_node) = &return_node.right else { panic!("Expected right node type of return node to have a value") };
-        let NodeTypes::Value(value) =  &value_node.node_type else { panic!("Expected right node type of return node to have a value") };
-        match &value.value {
-            TypeValues::I8(num) => {
-                let i8_type = self.context.i8_type();
-                let i8_value = i8_type.const_int(*num as u64, false);
-                self.builder.build_return(Some(&i8_value));
-                return Ok(());
+        if let NodeTypes::Value(value) =  &value_node.node_type {
+            match &value.value {
+                TypeValues::I8(num) => {
+                    let i8_type = self.context.i8_type();
+                    let i8_value = i8_type.const_int(*num as u64, false);
+                    self.builder.build_return(Some(&i8_value));
+                    return Ok(());
+                }
+                TypeValues::U8(num) => {
+                    let i8_type = self.context.i8_type();
+                    let i8_value = i8_type.const_int(*num as u64, false);
+                    self.builder.build_return(Some(&i8_value));
+                    return Ok(());
+                }
+                TypeValues::I32(num) => {
+                    let i32_type = self.context.i32_type();
+                    let i32_value = i32_type.const_int(*num as u64, false);
+                    self.builder.build_return(Some(&i32_value));
+                    return Ok(());
+                }
+                TypeValues::String(str) => {
+                    let str_array = self.context.i8_type();
+                    let i8_str = str_array.const_array(&self.str_into_array(&str));
+                    self.builder.build_return(Some(&i8_str));
+                    return Ok(());
+                }
+                TypeValues::None => {
+                    self.builder.build_return(None);
+                    return Ok(());
+                }
+                typeofval => unimplemented!("typeof {typeofval:#?} is not supported as of right now"),
             }
-            TypeValues::U8(num) => {
-                let i8_type = self.context.i8_type();
-                let i8_value = i8_type.const_int(*num as u64, false);
-                self.builder.build_return(Some(&i8_value));
-                return Ok(());
-            }
-            TypeValues::I32(num) => {
-                let i32_type = self.context.i32_type();
-                let i32_value = i32_type.const_int(*num as u64, false);
-                self.builder.build_return(Some(&i32_value));
-                return Ok(());
-            }
-            TypeValues::String(str) => {
-                let str_array = self.context.i8_type();
-                let i8_str = str_array.const_array(&self.str_into_array(&str));
-                self.builder.build_return(Some(&i8_str));
-                return Ok(());
-            }
-            TypeValues::FunctionCall(call) => {
-                let Some(arguments) = call.get_args(&value_node) else { panic!("Expected function call node to have arguments") };
-                if let Some(func) = self.module.get_function(&call.calls_to.name) {
+        }
+        if let NodeTypes::FunctionCall(call) = &value_node.node_type {
+            let Some(arguments) = call.get_args(&value_node) else { panic!("Expected function call node to have arguments") };
+            if let Some(func) = self.module.get_function(&call.calls_to.name) { 
                     let args = self.gen_args(arguments);
                     let call: CallSiteValue<'ctx> = self.builder.build_call(func, &args, "return");
                     let call_type = call.as_any_value_enum();
@@ -154,8 +165,7 @@ impl<'ctx> CodeGen<'ctx> {
                     format!("Couldn't find any function named: {}", call.calls_to.name).into(),
                 );
             }
-            typeofval => unimplemented!("typeof {typeofval:#?} is not supported as of right now"),
-        }
+        Ok(())
     }
 
     fn gen_alloca_store(&self, variable: &'ctx Variable, value: &Value) -> CompileResult<()> {

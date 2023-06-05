@@ -185,6 +185,7 @@ impl Parser {
             self.parse_generics_expr(&mut base_type)?;
             return Ok(base_type);
         }
+
         return Ok(base_type);
     }
 
@@ -270,7 +271,8 @@ impl Parser {
             }
             Tokens::OpenBracket => {
                 self.walk_back(1);
-                value.value = TypeValues::Array(self.parse_array(base_type)?);
+                let arr = self.parse_array(base_type)?;
+                value.value = TypeValues::Array(arr);
                 return Ok(Node::new(NodeTypes::Value(value), value_expr.line));
             }
             Tokens::Identifier => {
@@ -282,6 +284,9 @@ impl Parser {
                 }
                 value.value = expected_type.type_value_convert(&value_expr.value)?;
                 return Ok(Node::new(NodeTypes::Value(value), value_expr.line));
+            }
+            Tokens::Kw(Keywords::Void) => {
+                return Ok(Node::new(NodeTypes::Value(Value { value: TypeValues::None }), value_expr.line));
             }
             _ => return Err(self.invalid_token_in_expr("value", "value")),
         };
@@ -302,7 +307,7 @@ impl Parser {
             return Err(self.expected_type_seperator());
         }
 
-        let var_type = self.parse_type_expr()?;
+        let mut var_type = self.parse_type_expr()?;
 
         if self.consume_if_next(Tokens::Op(Operator::Eq)) {
             let mut node = Node::variable(
@@ -313,7 +318,7 @@ impl Parser {
                 Operator::Eq,
                 next_token.line,
             );
-            let variable_value = self.parse_value_expr(&var_type)?;
+            let variable_value = self.parse_value_expr(&mut var_type)?;
             node.right = Some(Box::new(variable_value));
             Ok(node)
         } else {
@@ -494,7 +499,7 @@ impl Parser {
     }
 
     pub fn parse_return_value(&mut self, type_expected: &Type) -> ParseResult<Node> {
-        let value = self.parse_value_expr(type_expected)?;
+        let value = self.parse_value_expr(&type_expected)?;
         let mut node = Node::new(NodeTypes::Return, value.line);
         node.right = Some(Box::new(value));
         Ok(node)
@@ -521,8 +526,8 @@ impl Parser {
     pub fn parse_fn_expr(&mut self) -> ParseResult<Node> {
         let ident = self.parse_next_ident_expr()?;
         let paramaters = self.parse_params()?;
-        let returns = self.parse_type_expr()?;
-        let (body, line) = self.parse_block_expr(&returns)?;
+        let mut returns = self.parse_type_expr()?;
+        let (body, line) = self.parse_block_expr(&mut returns)?;
         let function = Function {
             returns,
             ident,

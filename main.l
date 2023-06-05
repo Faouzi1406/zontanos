@@ -8,8 +8,9 @@ entry:
   ret i32 10
 }
 
-define i32 @main() {
+define void @main() {
 entry:
   %some = call i32 @name(i32 20, [12 x i8] c"Hello world!")
-  ret i32 10
+  %wicked = call i32 @name(i32 10, [12 x i8] c"Hello world!")
+  ret void
 }

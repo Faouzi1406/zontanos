@@ -3,7 +3,9 @@ fn name(name: i32, other: u8[12]) i32 {
 	return 10
 }
 
-fn main() i32 {
+fn main() void {
 	let some: i32 = name(20, "Hello world!")
-	return 10
+	let wicked: i32 = name(10, "Hello world!")
+	let some: i32 = 10;
+	return void;
 }
