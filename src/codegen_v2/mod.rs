@@ -5,7 +5,7 @@ pub mod zonc;
 use inkwell::basic_block::BasicBlock;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::types::{ArrayType, BasicMetadataTypeEnum, BasicType};
+use inkwell::types::{ArrayType, BasicMetadataTypeEnum, BasicType, AnyTypeEnum};
 use inkwell::values::{AnyValue, BasicMetadataValueEnum, CallSiteValue, IntValue, PointerValue, AnyValueEnum, ArrayValue};
 use inkwell::AddressSpace;
 use inkwell::{builder::Builder, values::FunctionValue};
@@ -135,6 +135,22 @@ impl<'ctx> CodeGen<'ctx> {
                     let arr = self.gen_array_values(array, function_returns);
                     self.builder.build_return(Some(&arr));
                     return Ok(())
+                }
+                TypeValues::Identifier(ident) => {
+                    let ident = self.get_ident(&ident)?;
+                    let value = ident.as_any_value_enum();
+                    match value.get_type() {
+                        AnyTypeEnum::IntType(_) => {
+                            self.builder.build_return(Some(&value.into_int_value()));
+                        }
+                        AnyTypeEnum::ArrayType(_) => {
+                            self.builder.build_return(Some(&value.into_array_value()));
+                        }
+                        AnyTypeEnum::VoidType(_) => {
+                            self.builder.build_return(None);
+                        }
+                        typeof_return => unimplemented!("Typeof {typeof_return} can not be used for returning values")
+                    }
                 }
                 TypeValues::String(str) => {
                     let str_array = self.context.i8_type();
@@ -341,6 +357,7 @@ impl<'ctx> CodeGen<'ctx> {
                 Types::I8 | Types::Char | Types::U8 | Types::String if param.r#type.is_array => {
                     meta.push(self.context.i8_type().array_type(param.r#type.size).into())
                 }
+                Types::I8 | Types::Char | Types::U8 if param.r#type.is_pointer => meta.push(self.context.i8_type().ptr_type(Default::default()).into()),
                 Types::I8 | Types::Char | Types::U8 => meta.push(self.context.i8_type().into()),
                 Types::I32 => meta.push(self.context.i32_type().into()),
                 Types::F32 => meta.push(self.context.f32_type().into()),

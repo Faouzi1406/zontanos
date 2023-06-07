@@ -293,7 +293,7 @@ impl Parser {
                     let function_call = Node::fn_call(function_call, arguments, value_expr.line);
                     return Ok(function_call);
                 }
-                value.value = expected_type.type_value_convert(&value_expr.value)?;
+                value.value = TypeValues::Identifier(value_expr.value);
                 return Ok(Node::new(NodeTypes::Value(value), value_expr.line));
             }
             Tokens::Kw(Keywords::Void) => {

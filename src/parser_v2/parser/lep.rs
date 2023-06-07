@@ -1,11 +1,12 @@
+use crate::parser_v2::parser::ParseResult;
 use crate::parser_v2::ast::{NodeTypes, Value};
 use crate::parser_v2::parser::Parser;
 
 pub enum Statements {
-    OrCase(Value, Value),
-    AndCase(Value, Value),
     Or,
     And,
+    OrCase(Value, Value),
+    AndCase(Value, Value),
     Atomic(Value),
 }
 
@@ -16,11 +17,12 @@ pub struct LogicalStatement {
 }
 
 impl Parser {
-    fn lep_parse(&mut self) {
+    fn lep_parse(&mut self) -> ParseResult<Vec<LogicalStatement>> {
+        let statements = Vec::new();
         while let Some(logical_expr_token) = self.next() {
-            match logical_expr_token.token_type {
-                _ => return,
-            }
+            let value = self.parse_not_know_type_value();
+            
         }
+        Ok(statements)
     }
 }

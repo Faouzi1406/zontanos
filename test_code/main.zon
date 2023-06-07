@@ -1,24 +1,20 @@
-fn name() string[13] {
+fn print(value: i8^) string[13] {
+	printf(^"value: %s", ^value)
 	return  "Hello, world!"
 }
 
-fn some() i32[4] {
-	return [1, 2, 3, 4]
+fn readChar() i8 {	
+	let value: char = getchar();
+	return value
 }
 
-fn w() char {
-	return 'c'
+fn putChar(charToPut: char) char {
+	putchar(charToPut)
+	return charToPut	
 }
 
 fn main() i32 {
-	let testing: i32 = 0
-
-	let values: i32[4] =  [1, 2, 3, 4]
-	let somstr: string[13] = "Hello, world!"
-
-	let wow: char = 'a'
-	let woooo: i32 = printf(^"value: %c %c", getchar(), '\n')
-	putchar(getchar())
-
+	printf(^"%c", readChar())
+	putChar('a')
 	return 0;
 }
