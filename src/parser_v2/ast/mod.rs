@@ -163,7 +163,7 @@ pub enum NodeTypes {
     Value(Value),
     FunctionCall(FunctionCall),
     Arguments(Vec<Value>),
-    Return
+    Return,
 }
 
 impl Node {
@@ -215,7 +215,10 @@ impl Type {
 
 impl From<TypeValues> for Value {
     fn from(value: TypeValues) -> Self {
-        Self { value, is_ptr: false }
+        Self {
+            value,
+            is_ptr: false,
+        }
     }
 }
 
@@ -223,7 +226,7 @@ impl FunctionCall {
     /// Gets the arguments of a function call node, expecting them to be on the left node, if they
     /// are not there None is returned.
     ///
-    /// **Important to note: If the arguments are placed incorrectly during parsing it will result in this function always returning None, 
+    /// **Important to note: If the arguments are placed incorrectly during parsing it will result in this function always returning None,
     /// it is therefore pivotal that the arguments of a function call are always placed in the
     /// left node.**
     pub fn get_args<'ctx>(&self, from: &'ctx Node) -> Option<&'ctx Vec<Value>> {

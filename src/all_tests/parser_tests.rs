@@ -557,7 +557,15 @@ fn parse_block_expr() {
     let mut params = Tokenizer::new(args);
     let tokens = Tokenizer::lex(&mut params);
     let mut parser = Parser::new(tokens);
-    let (body, _) = parser.parse_block_expr(&Type { r#type: Types::I32, is_array: false, is_pointer: false, size: 0, generics: Vec::new() }).unwrap();
+    let (body, _) = parser
+        .parse_block_expr(&Type {
+            r#type: Types::I32,
+            is_array: false,
+            is_pointer: false,
+            size: 0,
+            generics: Vec::new(),
+        })
+        .unwrap();
 
     let NodeTypes::Variable(value) = &body.get(0).unwrap().node_type else {
         panic!("Couldn't turn value in block into variable");
@@ -610,4 +618,16 @@ fn parse_func_call() {
 
     let firt_arg = arguments.get(2).unwrap();
     assert_eq!(firt_arg.value, TypeValues::String("testing".into()))
+}
+
+#[test]
+fn parse_statements() {
+    use crate::parser_v2::parser::Parser;
+    // the closecurrlybrace '{' serves for the end of a logical statements
+    let statements = " 10 > 20 || 20 == 10 {";
+
+    let mut statements = Tokenizer::new(statements);
+    let statements_tokens = Tokenizer::lex(&mut statements);
+    let mut parser = Parser::new(statements_tokens);
+    let parse_statements = parser.lep_parse_statements().unwrap();
 }

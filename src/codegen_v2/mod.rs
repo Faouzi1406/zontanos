@@ -5,15 +5,18 @@ pub mod zonc;
 use inkwell::basic_block::BasicBlock;
 use inkwell::context::Context;
 use inkwell::module::Module;
-use inkwell::types::{ArrayType, BasicMetadataTypeEnum, BasicType, AnyTypeEnum};
-use inkwell::values::{AnyValue, BasicMetadataValueEnum, CallSiteValue, IntValue, PointerValue, AnyValueEnum, ArrayValue};
+use inkwell::types::{AnyTypeEnum, ArrayType, BasicMetadataTypeEnum, BasicType};
+use inkwell::values::{
+    AnyValue, AnyValueEnum, ArrayValue, BasicMetadataValueEnum, CallSiteValue, IntValue,
+    PointerValue,
+};
 use inkwell::AddressSpace;
 use inkwell::{builder::Builder, values::FunctionValue};
 use std::error::Error;
 
 use crate::parser_v2::ast::{
     Ast, Function, FunctionCall, Node, NodeTypes, Paramater, Type, TypeValues, Types, Value,
-    Variable
+    Variable,
 };
 
 use self::zonc::GenC;
@@ -52,16 +55,18 @@ impl<'ctx> CodeGen<'ctx> {
                 .add_function(&func.ident.name, return_type, None))
         } else {
             let params = self.gen_params(&func.paramaters)?;
-            if let Ok(return_type) = self.gen_type(&func.returns) { 
+            if let Ok(return_type) = self.gen_type(&func.returns) {
                 let return_type = return_type.fn_type(&params, false);
                 return Ok(self
                     .module
-                    .add_function(&func.ident.name, return_type, None))
+                    .add_function(&func.ident.name, return_type, None));
             }
-            Ok(self
-                .module
-                .add_function(&func.ident.name, self.context.void_type().fn_type(&params, false), None))
-            }
+            Ok(self.module.add_function(
+                &func.ident.name,
+                self.context.void_type().fn_type(&params, false),
+                None,
+            ))
+        }
     }
 
     fn gen_block(
@@ -101,7 +106,7 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn gen_return(&self, return_node: &'ctx Node) -> CompileResult<()> {
         let Some(value_node) = &return_node.right else { panic!("Expected right node type of return node to have a value") };
-        if let NodeTypes::Value(value) =  &value_node.node_type {
+        if let NodeTypes::Value(value) = &value_node.node_type {
             match &value.value {
                 TypeValues::I8(num) => {
                     let i8_type = self.context.i8_type();
@@ -134,7 +139,7 @@ impl<'ctx> CodeGen<'ctx> {
                     let function_returns = &function.returns;
                     let arr = self.gen_array_values(array, function_returns);
                     self.builder.build_return(Some(&arr));
-                    return Ok(())
+                    return Ok(());
                 }
                 TypeValues::Identifier(ident) => {
                     let ident = self.get_ident(&ident)?;
@@ -149,7 +154,9 @@ impl<'ctx> CodeGen<'ctx> {
                         AnyTypeEnum::VoidType(_) => {
                             self.builder.build_return(None);
                         }
-                        typeof_return => unimplemented!("Typeof {typeof_return} can not be used for returning values")
+                        typeof_return => unimplemented!(
+                            "Typeof {typeof_return} can not be used for returning values"
+                        ),
                     }
                 }
                 TypeValues::String(str) => {
@@ -162,44 +169,44 @@ impl<'ctx> CodeGen<'ctx> {
                     self.builder.build_return(None);
                     return Ok(());
                 }
-                typeofval => unimplemented!("typeof {typeofval:#?} is not supported as of right now"),
+                typeofval => {
+                    unimplemented!("typeof {typeofval:#?} is not supported as of right now")
+                }
             }
         }
         if let NodeTypes::FunctionCall(call) = &value_node.node_type {
             let Some(arguments) = call.get_args(&value_node) else { panic!("Expected function call node to have arguments") };
-            if let Some(func) = self.module.get_function(&call.calls_to.name) { 
-                    let args = self.gen_args(arguments)?;
-                    let call: CallSiteValue<'ctx> = self.builder.build_call(func, &args, "return");
-                    let call_type = call.as_any_value_enum();
+            if let Some(func) = self.module.get_function(&call.calls_to.name) {
+                let args = self.gen_args(arguments)?;
+                let call: CallSiteValue<'ctx> = self.builder.build_call(func, &args, "return");
+                let call_type = call.as_any_value_enum();
 
-                    // Todo: Add check for the function return type and the calls return type |
-                    // give compile error if not equal
-                    if call_type.is_int_value() {
-                        let call = call_type.into_int_value();
-                        self.builder.build_return(Some(&call));
-                    }
-
-                    if call_type.is_array_value() {
-                        let call = call_type.into_array_value();
-                        self.builder.build_return(Some(&call));
-                    }
-
-                    if call_type.is_float_value() {
-                        let call = call_type.into_array_value();
-                        self.builder.build_return(Some(&call));
-                    }
-
-                    if call_type.is_pointer_value() {
-                        let call = call_type.into_array_value();
-                        self.builder.build_return(Some(&call));
-                    }
-
-                    return Ok(());
+                // Todo: Add check for the function return type and the calls return type |
+                // give compile error if not equal
+                if call_type.is_int_value() {
+                    let call = call_type.into_int_value();
+                    self.builder.build_return(Some(&call));
                 }
-                return Err(
-                    format!("Couldn't find any function named: {}", call.calls_to.name).into(),
-                );
+
+                if call_type.is_array_value() {
+                    let call = call_type.into_array_value();
+                    self.builder.build_return(Some(&call));
+                }
+
+                if call_type.is_float_value() {
+                    let call = call_type.into_array_value();
+                    self.builder.build_return(Some(&call));
+                }
+
+                if call_type.is_pointer_value() {
+                    let call = call_type.into_array_value();
+                    self.builder.build_return(Some(&call));
+                }
+
+                return Ok(());
             }
+            return Err(format!("Couldn't find any function named: {}", call.calls_to.name).into());
+        }
         Ok(())
     }
 
@@ -227,21 +234,22 @@ impl<'ctx> CodeGen<'ctx> {
                     let i32_value = i32_type.const_int(*num as u64, false);
                     values.push(i32_value.into())
                 }
-                typeofval => unimplemented!("typeof {typeofval:#?} is not supported as of right now"),
-
+                typeofval => {
+                    unimplemented!("typeof {typeofval:#?} is not supported as of right now")
+                }
             }
         }
 
         match &type_of.r#type {
             Types::I8 | Types::Char | Types::U8 => {
                 let i8_type = self.context.i8_type();
-                let array  = i8_type.const_array(&values);
-                return array
+                let array = i8_type.const_array(&values);
+                return array;
             }
             Types::I32 => {
                 let i8_type = self.context.i32_type();
-                let array  = i8_type.const_array(&values);
-                return array
+                let array = i8_type.const_array(&values);
+                return array;
             }
             typeofval => unimplemented!("typeof {typeofval:#?} is not supported as of right now"),
         }
@@ -298,11 +306,11 @@ impl<'ctx> CodeGen<'ctx> {
             }
             TypeValues::Char(char) => {
                 let str_array = self.context.i8_type();
-                let i8_str = str_array.const_int(*char as u64,false);
+                let i8_str = str_array.const_int(*char as u64, false);
                 self.builder.build_store(alloc_ptr, i8_str);
             }
             TypeValues::Array(arr) => {
-                let array  = self.gen_array_values(&arr, type_of);
+                let array = self.gen_array_values(&arr, type_of);
                 self.builder.build_store(alloc_ptr, array);
             }
             typeofval => unimplemented!("typeof {typeofval:#?} is not supported as of right now"),
@@ -357,7 +365,9 @@ impl<'ctx> CodeGen<'ctx> {
                 Types::I8 | Types::Char | Types::U8 | Types::String if param.r#type.is_array => {
                     meta.push(self.context.i8_type().array_type(param.r#type.size).into())
                 }
-                Types::I8 | Types::Char | Types::U8 if param.r#type.is_pointer => meta.push(self.context.i8_type().ptr_type(Default::default()).into()),
+                Types::I8 | Types::Char | Types::U8 if param.r#type.is_pointer => {
+                    meta.push(self.context.i8_type().ptr_type(Default::default()).into())
+                }
                 Types::I8 | Types::Char | Types::U8 => meta.push(self.context.i8_type().into()),
                 Types::I32 => meta.push(self.context.i32_type().into()),
                 Types::F32 => meta.push(self.context.f32_type().into()),
@@ -373,7 +383,10 @@ impl<'ctx> CodeGen<'ctx> {
         Ok(meta)
     }
 
-    fn gen_args(&self, arguments: &'ctx Vec<Value>) -> CompileResult<Vec<BasicMetadataValueEnum<'ctx>>> {
+    fn gen_args(
+        &self,
+        arguments: &'ctx Vec<Value>,
+    ) -> CompileResult<Vec<BasicMetadataValueEnum<'ctx>>> {
         let mut args = Vec::new();
         for arg in arguments {
             match &arg.value {
@@ -442,7 +455,9 @@ impl<'ctx> CodeGen<'ctx> {
                     // TODO: FIX THIS DON'T CONTINUE RETURN ERR, THIS IS JUST FOR NOW, OKAY
                     let Ok(value) = self.get_ident(&ident) else { continue };
                     if value.is_pointer_value() {
-                        let load_value = self.builder.build_load(value.into_pointer_value(), "loaded");
+                        let load_value = self
+                            .builder
+                            .build_load(value.into_pointer_value(), "loaded");
                         args.push(load_value.into());
                         continue;
                     }
@@ -458,7 +473,7 @@ impl<'ctx> CodeGen<'ctx> {
         &self,
         function_call: &'ctx FunctionCall,
         arguments: &'ctx Vec<Value>,
-        call_name: Option<&str>
+        call_name: Option<&str>,
     ) -> CompileResult<CallSiteValue<'ctx>> {
         if let Some(called_func) = self.module.get_function(&function_call.calls_to.name) {
             let args = &self.gen_args(arguments)?;
@@ -503,16 +518,10 @@ impl<'ctx> CodeGen<'ctx> {
         };
 
         match ident.as_any_value_enum() {
-            AnyValueEnum::IntValue(value) => {
-                Ok(value.into())
-            }
-            AnyValueEnum::ArrayValue(array) => {
-                Ok(array.into())
-            }
-            AnyValueEnum::PointerValue(value) => {
-                Ok(value.into())
-            }
-            _ => unimplemented!("Found unimplemented value, this should not be possible.")
-        } 
+            AnyValueEnum::IntValue(value) => Ok(value.into()),
+            AnyValueEnum::ArrayValue(array) => Ok(array.into()),
+            AnyValueEnum::PointerValue(value) => Ok(value.into()),
+            _ => unimplemented!("Found unimplemented value, this should not be possible."),
+        }
     }
 }

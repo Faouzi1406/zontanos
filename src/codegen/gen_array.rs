@@ -57,7 +57,10 @@ impl<'ctx> CodeGen<'ctx> {
         Ok(())
     }
 
-    pub(super) fn gen_i32_array_value(typeof_int: IntType<'ctx>, arr: &'ctx Vec<VarTypes>) -> Result<ArrayValue<'ctx>, String> {
+    pub(super) fn gen_i32_array_value(
+        typeof_int: IntType<'ctx>,
+        arr: &'ctx Vec<VarTypes>,
+    ) -> Result<ArrayValue<'ctx>, String> {
         let mut values = Vec::new();
 
         for value in arr {
@@ -72,7 +75,10 @@ impl<'ctx> CodeGen<'ctx> {
         Ok(const_array)
     }
 
-    pub(super) fn gen_i8_array_value(typeof_int: IntType<'ctx>, arr: &'ctx Vec<VarTypes>) -> Result<ArrayValue<'ctx>, String> {
+    pub(super) fn gen_i8_array_value(
+        typeof_int: IntType<'ctx>,
+        arr: &'ctx Vec<VarTypes>,
+    ) -> Result<ArrayValue<'ctx>, String> {
         let mut values = Vec::new();
 
         for value in arr {
@@ -88,7 +94,10 @@ impl<'ctx> CodeGen<'ctx> {
         Ok(const_array)
     }
 
-    pub(super)fn gen_float_array_value(typeof_float: FloatType<'ctx>, arr: &'ctx Vec<VarTypes>) -> Result<ArrayValue<'ctx>, String> {
+    pub(super) fn gen_float_array_value(
+        typeof_float: FloatType<'ctx>,
+        arr: &'ctx Vec<VarTypes>,
+    ) -> Result<ArrayValue<'ctx>, String> {
         let mut values = Vec::new();
 
         for value in arr {

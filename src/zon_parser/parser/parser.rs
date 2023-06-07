@@ -362,7 +362,7 @@ impl Parser {
             Tokens::OpenBracket => {
                 self.advance_back(1);
                 self.parse_array(marker_type)
-            },
+            }
             Tokens::Identifier => {
                 let Some(is_call) = self.next() else {
                     return Err(ParseErrors::ExpectedNext(line).to_string());
