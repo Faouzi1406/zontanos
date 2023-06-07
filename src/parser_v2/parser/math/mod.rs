@@ -80,7 +80,10 @@ impl<T> Stack<T> {
     }
 }
 
-impl<T> Debug for Stack<T> where T: Debug {
+impl<T> Debug for Stack<T>
+where
+    T: Debug,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("stack")
             .field("value", &self.value)

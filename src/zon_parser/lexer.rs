@@ -87,7 +87,7 @@ pub enum Operator {
     /// -
     Min,
     /// *
-    Times
+    Times,
 }
 
 #[derive(Debug, PartialEq, Clone)]

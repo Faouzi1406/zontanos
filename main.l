@@ -1,12 +1,12 @@
 ; ModuleID = 'main'
 source_filename = "main"
 
-@str_pointer = private unnamed_addr constant [10 x i8] c"value: %s\00", align 1
-@str_pointer.1 = private unnamed_addr constant [3 x i8] c"%c\00", align 1
+@str_pointer = private unnamed_addr constant [5 x i8] c"%s%c\00", align 1
+@str_pointer.1 = private unnamed_addr constant [17 x i8] c"Welkom my friend\00", align 1
 
-define [13 x i8] @print(i8* %0) {
+define [13 x i8] @println(i8* %0) {
 entry:
-  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([10 x i8], [10 x i8]* @str_pointer, i32 0, i32 0), i8* %0)
+  %call = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([5 x i8], [5 x i8]* @str_pointer, i32 0, i32 0), i8* %0, i8 10)
   ret [13 x i8] c"Hello, world!"
 }
 
@@ -28,10 +28,14 @@ entry:
 
 declare i8 @putchar(i8)
 
+define void @welkom() {
+entry:
+  %call = call [13 x i8] @println(i8* getelementptr inbounds ([17 x i8], [17 x i8]* @str_pointer.1, i32 0, i32 0))
+  ret void
+}
+
 define i32 @main() {
 entry:
-  %call = call i8 @readChar()
-  %call1 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([3 x i8], [3 x i8]* @str_pointer.1, i32 0, i32 0), i8 %call)
-  %call2 = call i8 @putChar(i8 97)
+  call void @welkom()
   ret i32 0
 }

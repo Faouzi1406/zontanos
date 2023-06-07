@@ -3,7 +3,7 @@ use std::{unimplemented, unreachable};
 
 use inkwell::basic_block::BasicBlock;
 use inkwell::types::{BasicMetadataTypeEnum, FunctionType};
-use inkwell::values::{AnyValue, FunctionValue, AnyValueEnum};
+use inkwell::values::{AnyValue, AnyValueEnum, FunctionValue};
 use inkwell::AddressSpace;
 
 use crate::ast::function::Function;
@@ -173,9 +173,9 @@ impl<'ctx> CodeGen<'ctx> {
             AnyValueEnum::IntValue(value) => self.builder.build_return(Some(&value)),
             AnyValueEnum::FloatValue(value) => self.builder.build_return(Some(&value)),
             AnyValueEnum::PointerValue(value) => self.builder.build_return(Some(&value)),
-            value => todo!("Support the call return type of {value}")
+            value => todo!("Support the call return type of {value}"),
         };
-        
+
         return Ok(());
     }
 }

@@ -38,7 +38,10 @@ impl<'ctx> GenC<'ctx> for CodeGen<'ctx> {
     }
 
     fn gen_putchar(&self) -> FunctionValue<'ctx> {
-        let putchar_type = self.context.i8_type().fn_type(&[self.context.i8_type().into()], false);
+        let putchar_type = self
+            .context
+            .i8_type()
+            .fn_type(&[self.context.i8_type().into()], false);
         let putchar = self
             .module
             .add_function("putchar", putchar_type, Some(Linkage::External));

@@ -11,7 +11,7 @@ impl From<&str> for Types {
             "string" => Self::String,
             "array" => Self::Array,
             "void" => Self::None,
-            unknown_type => Self::UnknownType(unknown_type.to_string())
+            unknown_type => Self::UnknownType(unknown_type.to_string()),
         }
     }
 }

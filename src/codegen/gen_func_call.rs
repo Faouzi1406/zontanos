@@ -9,8 +9,8 @@ use crate::ast::{
 use inkwell::{
     types::{AnyTypeEnum, BasicTypeEnum, PointerType},
     values::{
-        AnyValue, AsValueRef, BasicMetadataValueEnum, CallSiteValue, FunctionValue,
-        InstructionValue, PointerValue, AnyValueEnum,
+        AnyValue, AnyValueEnum, AsValueRef, BasicMetadataValueEnum, CallSiteValue, FunctionValue,
+        InstructionValue, PointerValue,
     },
     AddressSpace,
 };

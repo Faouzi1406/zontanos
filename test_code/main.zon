@@ -1,5 +1,5 @@
-fn print(value: i8^) string[13] {
-	printf(^"value: %s", ^value)
+fn println(value: i8^) string[13] {
+	printf(^"%s%c", ^value, '\n')
 	return  "Hello, world!"
 }
 
@@ -13,8 +13,12 @@ fn putChar(charToPut: char) char {
 	return charToPut	
 }
 
+fn welkom() void {
+	println(^"Welkom my friend")
+	return void
+}
+
 fn main() i32 {
-	printf(^"%c", readChar())
-	putChar('a')
+	welkom()
 	return 0;
 }

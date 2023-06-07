@@ -46,7 +46,10 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    pub(super) fn gen_arr_return_value(&self, return_value: &'ctx Return) -> Option<impl BasicValue> {
+    pub(super) fn gen_arr_return_value(
+        &self,
+        return_value: &'ctx Return,
+    ) -> Option<impl BasicValue> {
         match &return_value.0 {
             VarTypes::Array { array, array_type } => match array_type {
                 MarkerTypes::I8 => {

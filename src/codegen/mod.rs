@@ -41,9 +41,7 @@ impl<'ctx> CodeGen<'ctx> {
         for node in ast.body.iter() {
             match node {
                 Expr::Block(block) => {
-                    return Err(
-                        "Tried creating a block with no scope, is not allowed.".into(),
-                    )
+                    return Err("Tried creating a block with no scope, is not allowed.".into())
                 }
                 Expr::Logic(logic) => {}
                 Expr::Variable(var) => {}
@@ -54,7 +52,9 @@ impl<'ctx> CodeGen<'ctx> {
                 }
                 Expr::FunctionCall(call) => {}
                 Expr::Return(ret) => {
-                    return Err(format!("You can not have return statemetns outside of functions").into())
+                    return Err(
+                        format!("You can not have return statemetns outside of functions").into(),
+                    )
                 }
                 Expr::Program => continue,
             }
