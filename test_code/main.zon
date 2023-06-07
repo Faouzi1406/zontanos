@@ -1,11 +1,24 @@
-fn name(name: i32, other: u8[12]) i32 {
-	let some: string[2] = "he"
-	return 10
+fn name() string[13] {
+	return  "Hello, world!"
 }
 
-fn main() void {
-	let some: i32 = name(20, "Hello world!")
-	let wicked: i32 = name(10, "Hello world!")
-	let some: i32 = 10;
-	return void;
+fn some() i32[4] {
+	return [1, 2, 3, 4]
+}
+
+fn w() char {
+	return 'c'
+}
+
+fn main() i32 {
+	let testing: i32 = 0
+
+	let values: i32[4] =  [1, 2, 3, 4]
+	let somstr: string[13] = "Hello, world!"
+
+	let wow: char = 'a'
+	let woooo: i32 = printf(^"value: %c %c", getchar(), '\n')
+	putchar(getchar())
+
+	return 0;
 }

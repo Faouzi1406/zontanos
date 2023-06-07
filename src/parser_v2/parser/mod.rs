@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 pub mod errors;
+pub mod lep;
 pub mod math;
 
 use super::ast::{
@@ -105,6 +106,7 @@ impl Parser {
         let mut generic_type = Type {
             r#type: Types::UnknownType("".into()),
             is_array: false,
+            is_pointer: false,
             size: 0,
             generics: Vec::new(),
         };
@@ -163,6 +165,7 @@ impl Parser {
         let mut base_type = Type {
             r#type: Types::from(base_type.value.as_str()),
             generics: Vec::new(),
+            is_pointer: false,
             is_array: false,
             size: 0,
         };
@@ -186,6 +189,10 @@ impl Parser {
             return Ok(base_type);
         }
 
+        if self.consume_if_next(Tokens::Pointer) {
+            base_type.is_pointer = true;
+        }
+
         return Ok(base_type);
     }
 
@@ -200,9 +207,9 @@ impl Parser {
     /// introducing more complex types, this could be a posibility**
     pub fn parse_array(&mut self, base_type: &Type) -> ParseResult<Vec<TypeValues>> {
         let mut array_items: Vec<TypeValues> = Vec::new();
-        let Some(inner_array_type)  = base_type.generics.get(0) else {
+        if !base_type.is_array {
             return Err(self.expected_array_generic());
-        };
+        }
 
         if !self.consume_if_next(Tokens::OpenBracket) {
             return Err(
@@ -218,9 +225,7 @@ impl Parser {
                     if curr != TypeValues::None {
                         return Err(self.expected_value_seprator());
                     }
-                    let value = inner_array_type
-                        .r#type
-                        .type_value_convert(&array_value.value)?;
+                    let value = base_type.r#type.type_value_convert(&array_value.value)?;
                     curr = value;
                 }
                 Tokens::Identifier => curr = TypeValues::Identifier(array_value.value),
@@ -257,9 +262,15 @@ impl Parser {
     pub fn parse_value_expr(&mut self, base_type: &Type) -> ParseResult<Node> {
         let mut value = Value {
             value: TypeValues::None,
+            is_ptr: false,
         };
 
         let expected_type = base_type.r#type.clone();
+
+        if self.consume_if_next(Tokens::Pointer) {
+            value.is_ptr = true;
+        }
+
         let Some(value_expr) = self.next() else {
             return Err(self.invalid_expected_type("value", "none"));
         };
@@ -276,17 +287,23 @@ impl Parser {
                 return Ok(Node::new(NodeTypes::Value(value), value_expr.line));
             }
             Tokens::Identifier => {
-                if self.consume_if_next(Tokens::OpenBrace) { 
-                        self.walk_back(2);
-                        let (function_call, arguments) = self.parse_fn_call_expr()?;
-                        let function_call = Node::fn_call(function_call, arguments, value_expr.line);
-                        return Ok(function_call);
+                if self.consume_if_next(Tokens::OpenBrace) {
+                    self.walk_back(2);
+                    let (function_call, arguments) = self.parse_fn_call_expr()?;
+                    let function_call = Node::fn_call(function_call, arguments, value_expr.line);
+                    return Ok(function_call);
                 }
                 value.value = expected_type.type_value_convert(&value_expr.value)?;
                 return Ok(Node::new(NodeTypes::Value(value), value_expr.line));
             }
             Tokens::Kw(Keywords::Void) => {
-                return Ok(Node::new(NodeTypes::Value(Value { value: TypeValues::None }), value_expr.line));
+                return Ok(Node::new(
+                    NodeTypes::Value(Value {
+                        value: TypeValues::None,
+                        is_ptr: false,
+                    }),
+                    value_expr.line,
+                ));
             }
             _ => return Err(self.invalid_token_in_expr("value", "value")),
         };
@@ -367,6 +384,14 @@ impl Parser {
     }
 
     fn parse_not_know_type_value(&mut self) -> ParseResult<Value> {
+        let mut value_holder = Value {
+            value: TypeValues::None,
+            is_ptr: false,
+        };
+        if self.consume_if_next(Tokens::Pointer) {
+            value_holder.is_ptr = true;
+        }
+
         let Some(value) = self.next() else {
             //todo fix tis!
             return Err(self.expected_value_seprator());
@@ -377,27 +402,39 @@ impl Parser {
             Tokens::String => {
                 let none_type = Types::String;
                 let value = none_type.type_value_convert(&value.value)?;
-                Ok(Value { value })
+                value_holder.value = value;
+                Ok(value_holder)
             }
             Tokens::Char => {
                 let none_type = Types::Char;
                 let value = none_type.type_value_convert(&value.value)?;
-                Ok(Value { value })
+                value_holder.value = value;
+                Ok(value_holder)
             }
             Tokens::Number => {
                 let none_type = Types::I32;
                 let value = none_type.type_value_convert(&value.value)?;
-                Ok(Value { value })
+                value_holder.value = value;
+                Ok(value_holder)
             }
             Tokens::FloatNumber => {
                 let none_type = Types::F32;
                 let value = none_type.type_value_convert(&value.value)?;
-                Ok(Value { value })
+                value_holder.value = value;
+                Ok(value_holder)
             }
             Tokens::Identifier => {
+                if self.consume_if_next(Tokens::OpenBrace) {
+                    self.walk_back(2);
+                    let (call, args) = self.parse_fn_call_expr()?;
+                    let NodeTypes::Arguments(args) = args else { unreachable!("ERROR: EXPECTED ARGUMENTS FROM PARSE FN CALL") };
+                    value_holder.value = TypeValues::FunctionCall(call, args);
+                    return Ok(value_holder.into());
+                }
                 let none_type = Types::Ident;
                 let value = none_type.type_value_convert(&value.value)?;
-                Ok(Value { value })
+                value_holder.value = value;
+                Ok(value_holder)
             }
             _ => Err(self.invalid_token_in_expr("value", "value")),
         }
