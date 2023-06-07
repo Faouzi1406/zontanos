@@ -70,6 +70,7 @@ pub struct Assignment {
 pub struct Type {
     pub r#type: Types,
     pub is_array: bool,
+    pub is_pointer: bool,
     pub size: u32,
     pub generics: Vec<Type>,
 }
@@ -99,9 +100,10 @@ pub struct Ident {
 ///
 /// **r#name** the name of that value
 /// **value** the value
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Value {
     pub value: TypeValues,
+    pub is_ptr: bool,
 }
 
 /// [`FunctionCall`]
@@ -141,7 +143,7 @@ pub enum TypeValues {
     F32(f32),
     Char(char),
     String(String),
-    FunctionCall(FunctionCall),
+    FunctionCall(FunctionCall, Vec<Value>),
     Array(Vec<TypeValues>),
     Identifier(String),
     NoneVal(String),
@@ -204,6 +206,7 @@ impl Type {
         Self {
             r#type: Types::None,
             is_array: false,
+            is_pointer: false,
             size: 0,
             generics: Vec::new(),
         }
@@ -212,7 +215,7 @@ impl Type {
 
 impl From<TypeValues> for Value {
     fn from(value: TypeValues) -> Self {
-        Self { value }
+        Self { value, is_ptr: false }
     }
 }
 
@@ -228,5 +231,16 @@ impl FunctionCall {
             return None;
         };
         Some(args)
+    }
+}
+
+impl Function {
+    pub fn get_param_index_with_name(&self, name_param: &str) -> Option<usize> {
+        for (index, param) in self.paramaters.iter().enumerate() {
+            if &param.ident.name == name_param {
+                return Some(index);
+            }
+        }
+        None
     }
 }
