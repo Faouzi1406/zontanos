@@ -48,5 +48,5 @@ fn main() -> Result<(), &'static str> {
     };
         return Ok(());
     };
-    return Ok(());
+    Ok(())
 }

@@ -1,6 +1,6 @@
-fn println(value: i8^) string[13] {
-	printf(^"%s%c", ^value, '\n')
-	return  "Hello, world!"
+fn println(value: i8^) i32 {
+	let chars: i32 = printf(^"%s%c", ^value, '\n')
+	return chars
 }
 
 fn readChar() i8 {	

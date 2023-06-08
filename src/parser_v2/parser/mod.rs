@@ -305,6 +305,24 @@ impl Parser {
                     value_expr.line,
                 ));
             }
+            Tokens::BoolTrue => {
+                return Ok(Node::new(
+                    NodeTypes::Value(Value {
+                        value: TypeValues::True,
+                        is_ptr: false,
+                    }),
+                    value_expr.line,
+                ));
+            }
+            Tokens::BoolFalse => {
+                return Ok(Node::new(
+                    NodeTypes::Value(Value {
+                        value: TypeValues::False,
+                        is_ptr: false,
+                    }),
+                    value_expr.line,
+                ));
+            }
             _ => return Err(self.invalid_token_in_expr("value", "value")),
         };
     }
@@ -436,6 +454,12 @@ impl Parser {
                 value_holder.value = value;
                 Ok(value_holder)
             }
+            Tokens::BoolTrue => {
+                Ok(Value { value: TypeValues::True, is_ptr: false })
+            }
+            Tokens::BoolFalse => {
+                Ok(Value { value: TypeValues::False, is_ptr: false })
+            }
             _ => Err(self.invalid_token_in_expr("value", "value")),
         }
     }
@@ -518,6 +542,13 @@ impl Parser {
                 }
                 Tokens::CloseCurlyBracket => {
                     return Ok((body, body_token.line));
+                }
+                Tokens::Kw(Keywords::If) => {
+                    let lep = self.lep_parse(type_expected)?;
+                    body.push(Node::new(
+                        NodeTypes::LogicalStatement(Box::new(lep)),
+                        body_token.line,
+                    ))
                 }
                 Tokens::Kw(Keywords::Return) => {
                     let return_node = self.parse_return_value(type_expected)?;

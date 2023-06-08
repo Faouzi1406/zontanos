@@ -3,6 +3,8 @@
 
 use crate::{ast::variable, zon_parser::lexer::Operator};
 
+use super::parser::lep::LogicalStatement;
+
 pub mod types_from_str;
 pub mod types_match;
 
@@ -147,6 +149,8 @@ pub enum TypeValues {
     Array(Vec<TypeValues>),
     Identifier(String),
     NoneVal(String),
+    True,
+    False,
     None,
 }
 
@@ -163,6 +167,7 @@ pub enum NodeTypes {
     Value(Value),
     FunctionCall(FunctionCall),
     Arguments(Vec<Value>),
+    LogicalStatement(Box<LogicalStatement>),
     Return,
 }
 

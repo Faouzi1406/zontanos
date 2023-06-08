@@ -18,6 +18,7 @@ use crate::parser_v2::ast::{
     Ast, Function, FunctionCall, Node, NodeTypes, Paramater, Type, TypeValues, Types, Value,
     Variable,
 };
+use crate::parser_v2::parser::lep::{LogicalStatement, Statements};
 
 use self::zonc::GenC;
 
@@ -95,6 +96,9 @@ impl<'ctx> CodeGen<'ctx> {
                     let Some(args) = call.get_args(node) else {return Err("expected the arguments of a function to be in the left branch".into())};
                     self.gen_func_call(call, &args, None)?;
                 }
+                NodeTypes::LogicalStatement(statement) => {
+                    todo!("Compile logical statements")
+                }
                 NodeTypes::Return => {
                     let _ = self.gen_return(node);
                 }
@@ -102,6 +106,20 @@ impl<'ctx> CodeGen<'ctx> {
             }
         }
         Ok(block)
+    }
+
+    fn gen_logcal_statement(&self, logical_statement: &Box<LogicalStatement>) {
+        
+    }
+
+    fn gen_case(&self, statements: &Vec<Statements>) {
+        for statement in statements {
+            match statement {
+                Statements::OrOr(value, other_value)  => {
+                }
+                _ => todo!()
+            }
+        }
     }
 
     fn gen_return(&self, return_node: &'ctx Node) -> CompileResult<()> {
