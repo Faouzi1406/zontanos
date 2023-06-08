@@ -1,6 +1,5 @@
 // //! This contains all the tests for the parser.
 // use std::assert_eq;
-
 use crate::{
     ast::{
         logic::LogicalStatements,
@@ -9,7 +8,10 @@ use crate::{
         Expr,
     },
     panic_test,
-    parser_v2::ast::{NodeTypes, Type, TypeValues, Types},
+    parser_v2::{
+        ast::{NodeTypes, Type, TypeValues, Types},
+        parser::lep::Statements,
+    },
     zon_parser::{
         lexer::{Lexer, Operator, Tokenizer},
         parser::parser::Parser,
@@ -624,10 +626,79 @@ fn parse_func_call() {
 fn parse_statements() {
     use crate::parser_v2::parser::Parser;
     // the closecurrlybrace '{' serves for the end of a logical statements
-    let statements = " 10 > 20 || 20 == 10 {";
+    let statements = " 10 >= 20 || 20 == 10 && 20 < wow() && true {";
 
     let mut statements = Tokenizer::new(statements);
     let statements_tokens = Tokenizer::lex(&mut statements);
     let mut parser = Parser::new(statements_tokens);
     let parse_statements = parser.lep_parse_statements().unwrap();
+
+    let Some(Statements::MoreEq(value, value1)) = parse_statements.get(0) else {
+        panic!("Expected the first statement to be a MoreEq")
+    };
+    assert_eq!(value.value, TypeValues::I32(10));
+    assert_eq!(value1.value, TypeValues::I32(20));
+
+    // Or
+    assert_eq!(Some(&Statements::Or), parse_statements.get(1));
+
+    let Some(Statements::EqEq(value, value1)) = parse_statements.get(2) else {
+        panic!("Expected the third statement to be a EqEq")
+    };
+    assert_eq!(value.value, TypeValues::I32(20));
+    assert_eq!(value1.value, TypeValues::I32(10));
+
+    // And
+    assert_eq!(Some(&Statements::And), parse_statements.get(3));
+
+    let Some(Statements::Less(value, value1)) = parse_statements.get(4) else {
+        panic!("Expected the fourth statement to be a Less")
+    };
+    assert_eq!(value.value, TypeValues::I32(20));
+    let Some(Statements::Atomic(atomic_value)) = parse_statements.get(6) else {
+        panic!("Expected the sixth statement to be a Atomic")
+    };
+    assert_eq!(atomic_value.value, TypeValues::True);
+}
+
+#[test]
+fn parse_logical_expr() {
+    use crate::parser_v2::parser::Parser;
+    // the closecurrlybrace '{' serves for the end of a logical statements
+    let lep = "10 >= 20 || 20 == 10 && 20 < wow() || 20 < 10 {
+        print(\"Hello world\")
+    } else {
+        print(\"lol\")
+    }";
+
+    let mut lep = Tokenizer::new(lep);
+    let lep_tokens = Tokenizer::lex(&mut lep);
+    let mut parser = Parser::new(lep_tokens);
+    let parse_lep = parser.lep_parse(&Type::none_type()).unwrap();
+
+    let cases = parse_lep.case;
+
+    let Some(Statements::MoreEq(value, value1)) = cases.get(0) else {
+        panic!("Expected the first statement to be a MoreEq")
+    };
+    assert_eq!(value.value, TypeValues::I32(10));
+    assert_eq!(value1.value, TypeValues::I32(20));
+
+    // Or
+    assert_eq!(Some(&Statements::Or), cases.get(1));
+
+    let Some(Statements::EqEq(value, value1)) = cases.get(2) else {
+        panic!("Expected the third statement to be a EqEq")
+    };
+    assert_eq!(value.value, TypeValues::I32(20));
+    assert_eq!(value1.value, TypeValues::I32(10));
+
+    // And
+    assert_eq!(Some(&Statements::And), cases.get(3));
+
+    let Some(Statements::Less(value, value1)) = cases.get(4) else {
+        panic!("Expected the third statement to be a EqEq")
+    };
+    assert_eq!(value.value, TypeValues::I32(20));
+    assert!(parse_lep.else_do.is_some());
 }
