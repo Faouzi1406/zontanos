@@ -19,6 +19,9 @@ fn welkom() void {
 }
 
 fn main() i32 {
+	let some: i32 = 10
+	some = 20
+	printf(^"%d%c", some, '\n')
 	welkom()
 	return 0;
 }
