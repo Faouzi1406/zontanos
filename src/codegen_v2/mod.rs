@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 pub mod zonc;
+mod lep_codegen;
 
 use inkwell::basic_block::BasicBlock;
 use inkwell::context::Context;
@@ -13,13 +14,11 @@ use inkwell::values::{
 use inkwell::AddressSpace;
 use inkwell::{builder::Builder, values::FunctionValue};
 use std::error::Error;
-
 use crate::parser_v2::ast::{
     Ast, Function, FunctionCall, Node, NodeTypes, Paramater, Type, TypeValues, Types, Value,
-    Variable,
+    Variable, Assignment,
 };
-use crate::parser_v2::parser::lep::{LogicalStatement, Statements};
-
+use crate::zon_parser::lexer::Operator;
 use self::zonc::GenC;
 
 pub struct CodeGen<'ctx> {
@@ -99,6 +98,9 @@ impl<'ctx> CodeGen<'ctx> {
                 NodeTypes::LogicalStatement(statement) => {
                     todo!("Compile logical statements")
                 }
+                NodeTypes::Assignment(assignment) => {
+                    self.gen_reassignment(assignment, node)?;
+                }
                 NodeTypes::Return => {
                     let _ = self.gen_return(node);
                 }
@@ -108,18 +110,21 @@ impl<'ctx> CodeGen<'ctx> {
         Ok(block)
     }
 
-    fn gen_logcal_statement(&self, logical_statement: &Box<LogicalStatement>) {
-        
-    }
+    fn gen_reassignment(&self, assignment: &'ctx Assignment, node: &'ctx Node) -> CompileResult<()> {
+        let get_ident = self.get_ident(&assignment.assigns_to.name)?;
+        if get_ident.is_pointer_value() {
+            let Some(op) = assignment.get_op(node) else { return Err("expected a operator for gen_reassignment".into()) };
+            let Some(value) = assignment.get_value(node) else { return Err("expected a value for gen_reassignment".into()) };
 
-    fn gen_case(&self, statements: &Vec<Statements>) {
-        for statement in statements {
-            match statement {
-                Statements::OrOr(value, other_value)  => {
+            match op {
+                Operator::Eq => {
+                    let ptr = get_ident.into_pointer_value();  
+                    self.gen_store(value, ptr, None);
                 }
-                _ => todo!()
+                _ => return Err(format!("the operator {:#?} is not a valid reassignment operator.", op).into())
             }
         }
+        Ok(())
     }
 
     fn gen_return(&self, return_node: &'ctx Node) -> CompileResult<()> {
@@ -277,12 +282,12 @@ impl<'ctx> CodeGen<'ctx> {
         if variable.var_type.is_array {
             let arr_type = self.gen_type_array(&variable.var_type)?;
             let alloc = self.builder.build_alloca(arr_type, &variable.ident.name);
-            self.gen_store(value, alloc, &variable.var_type);
+            self.gen_store(value, alloc, Some(&variable.var_type));
             Ok(())
         } else {
             let var_type = self.gen_type(&variable.var_type)?;
             let alloc = self.builder.build_alloca(var_type, &variable.ident.name);
-            self.gen_store(value, alloc, &variable.var_type);
+            self.gen_store(value, alloc, Some(&variable.var_type));
             Ok(())
         }
     }
@@ -300,7 +305,7 @@ impl<'ctx> CodeGen<'ctx> {
         iter
     }
 
-    fn gen_store(&self, value: &'ctx Value, alloc_ptr: PointerValue, type_of: &'ctx Type) {
+    fn gen_store(&self, value: &'ctx Value, alloc_ptr: PointerValue, type_of: Option<&'ctx Type>) {
         match &value.value {
             TypeValues::I8(num) => {
                 let i8_type = self.context.i8_type();
@@ -328,6 +333,7 @@ impl<'ctx> CodeGen<'ctx> {
                 self.builder.build_store(alloc_ptr, i8_str);
             }
             TypeValues::Array(arr) => {
+                let type_of = type_of.unwrap();
                 let array = self.gen_array_values(&arr, type_of);
                 self.builder.build_store(alloc_ptr, array);
             }

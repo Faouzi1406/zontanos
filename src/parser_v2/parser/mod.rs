@@ -454,12 +454,14 @@ impl Parser {
                 value_holder.value = value;
                 Ok(value_holder)
             }
-            Tokens::BoolTrue => {
-                Ok(Value { value: TypeValues::True, is_ptr: false })
-            }
-            Tokens::BoolFalse => {
-                Ok(Value { value: TypeValues::False, is_ptr: false })
-            }
+            Tokens::BoolTrue => Ok(Value {
+                value: TypeValues::True,
+                is_ptr: false,
+            }),
+            Tokens::BoolFalse => Ok(Value {
+                value: TypeValues::False,
+                is_ptr: false,
+            }),
             _ => Err(self.invalid_token_in_expr("value", "value")),
         }
     }
@@ -535,10 +537,16 @@ impl Parser {
                 }
                 Tokens::Identifier => {
                     // Handle re-assignments
+                    if self.consume_if_next(Tokens::OpenBrace) {
+                        self.walk_back(2);
+                        let (func_call, arguments) = self.parse_fn_call_expr()?;
+                        let func_call_node = Node::fn_call(func_call, arguments, body_token.line);
+                        body.push(func_call_node);
+                        continue;
+                    }
                     self.walk_back(1);
-                    let (func_call, arguments) = self.parse_fn_call_expr()?;
-                    let func_call_node = Node::fn_call(func_call, arguments, body_token.line);
-                    body.push(func_call_node);
+                    let reassignment = self.parse_reassignment_expr()?;
+                    body.push(reassignment);
                 }
                 Tokens::CloseCurlyBracket => {
                     return Ok((body, body_token.line));

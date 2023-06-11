@@ -252,3 +252,17 @@ impl Function {
         None
     }
 }
+
+impl Assignment {
+    pub fn get_op<'ctx>(&self, node: &'ctx Node) -> Option<&'ctx Operator> {
+        let Some(node) = &node.left else { return None; };
+        let NodeTypes::Operator(op) = &node.node_type else { return None };
+        Some(op)
+    }
+
+    pub fn get_value<'ctx>(&self, node: &'ctx Node) -> Option<&'ctx Value> {
+        let Some(node) = &node.right else { return None; };
+        let NodeTypes::Value(value) = &node.node_type else { return None };
+        Some(value)
+    }
+}
