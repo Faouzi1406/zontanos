@@ -1,6 +1,5 @@
-use std::fmt::Debug;
-
 use crate::zon_parser::lexer::{Operator, Tokens};
+use std::fmt::Debug;
 
 // 1 + 1 = 2
 // 2 * 3 + 2 = 8
@@ -36,58 +35,50 @@ impl Parser {
     }
 }
 
-pub struct Stack<T> {
-    pub value: Option<T>,
-    pub next: Option<Box<Stack<T>>>,
+#[derive(Debug)]
+pub struct Stack<'a, T> {
+    head: Option<Node<'a, T>>,
 }
 
-impl<T> Stack<T> {
-    pub fn init() -> Self {
-        Self {
-            value: None,
-            next: None,
-        }
-    }
-
-    pub fn new(value: T) -> Self {
-        Self {
-            value: Some(value),
-            next: None,
-        }
-    }
-
-    pub fn push(&mut self, value: T) {
-        if self.value.is_none() {
-            self.value = Some(value);
-            return;
-        }
-        if self.next.is_some() {
-            return self.next.as_mut().unwrap().push(value);
-        }
-        self.next = Some(Box::from(Self::new(value)));
-    }
-
-    pub fn pop(&mut self) -> Option<T>
-    where
-        T: Clone,
-    {
-        if self.next.is_some() {
-            return self.next.as_mut().unwrap().pop();
-        }
-        let value = self.value.clone()?;
-        self.value = None;
-        return Some(value);
-    }
+#[derive(Debug, Clone)]
+struct Node<'a, T> {
+    next: Option<Box<Node<'a, T>>>,
+    value: &'a T,
 }
 
-impl<T> Debug for Stack<T>
+impl<'a, T> Stack<'a, T>
 where
-    T: Debug,
+    T: Debug + Clone,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("stack")
-            .field("value", &self.value)
-            .field("next", &self.next)
-            .finish()
+    pub fn new() -> Self {
+        Self { head: None }
+    }
+
+    pub fn push_front(&mut self, value: &'a T) {
+        let mut node = Node::new(value);
+
+        let Some(head) = &self.head else {
+            self.head = Some(node);
+            return
+        };
+
+        node.next = Some(Box::new(head.clone()));
+        self.head = Some(node);
+    }
+
+    pub fn pop(&mut self) -> Option<&T> {
+        let head =  self.head.clone()?;
+        if let Some(next) = head.next {
+            self.head = Some(*next);
+        } else {
+            self.head = None;
+        }
+        Some(head.value)
+    }
+}
+
+impl<'a, T> Node<'a, T> {
+    pub fn new(value: &'a T) -> Self {
+        Self { next: None, value }
     }
 }

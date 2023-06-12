@@ -88,6 +88,8 @@ pub enum Operator {
     Min,
     /// *
     Times,
+    /// +=
+    PlusIs,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -281,6 +283,7 @@ pub trait Tokenize {
     /// returns either a [`Tokens::Op(Operator::And)`] token or a [`Tokens::Op(Operator::AndAnd)`] token
     /// Expects a '&' character to be the previous character
     fn token_and(&mut self, line: usize) -> Token;
+    fn tokens_plus(&mut self, line: usize) -> Token;
 }
 
 impl Tokenize for Tokenizer {
@@ -580,6 +583,33 @@ impl Tokenize for Tokenizer {
             }
         }
     }
+
+    fn tokens_plus(&mut self, line: usize) -> Token {
+        if let Some(prev) = self.prev_char {
+            assert_eq!(prev, '+');
+            match self.next() {
+                Some(char) => match char {
+                    '=' => {
+                        return Token::new(line, "+=".into(), "+=");
+                    }
+                    _ => {
+                        self.advance_back(1);
+                        return Token::new(line, '+'.into(), "+");
+                    }
+                }
+                None => {
+                    return Token::new(line, '+'.into(), "+");
+                }
+            }
+        }
+        Token::new(
+            line,
+            Tokens::InvalidToken(TokenErrorMessages::TokenInvalid(
+                "Got a call to token_plus but there was no previous character present.".to_string(),
+            )),
+            "no prev token",
+        )
+    }
 }
 
 pub trait Lexer {
@@ -603,6 +633,7 @@ pub trait Lexer {
                 '0'..='9' => tokens.push(tokenizer.token_num(line)),
                 'a'..='z' | 'A'..='Z' => tokens.push(tokenizer.token_identifier(line)),
                 '/' => tokens.push(tokenizer.token_comment(line)),
+                '+' => tokens.push(tokenizer.tokens_plus(line)),
                 token => {
                     let token = Token::new(line, token.into(), &token.to_string());
                     if let Tokens::InvalidToken(_) = token.token_type {
