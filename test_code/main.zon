@@ -18,10 +18,27 @@ fn welkom() void {
 	return void
 }
 
-fn main() i32 {
-	let some: i32 = 10
-	some = 20
-	printf(^"%d%c", some, '\n')
-	welkom()
-	return 0;
+fn recurse(value: i32, limit: i32) i32 {
+	printf(^"beepboop %d%c", value, '\n')
+
+	if value >= limit {
+		return 18;
+	} else {
+		let v: i32 = value;
+		v += 1;
+	 	return recurse(v, limit);
+	}
+	return 18
+}
+
+fn main() void {
+	let fun: i32 = recurse(0, 200)
+	if fun > 20 || 9 > 10 {
+		printf(^"whut")
+		return void
+	} else {
+		printf(^"nope")
+		return void
+	}
+	return void
 }

@@ -9,7 +9,7 @@ use inkwell::module::Module;
 use inkwell::types::{AnyTypeEnum, ArrayType, BasicMetadataTypeEnum, BasicType};
 use inkwell::values::{
     AnyValue, AnyValueEnum, ArrayValue, BasicMetadataValueEnum, CallSiteValue, IntValue,
-    PointerValue,
+    PointerValue, BasicValueEnum,
 };
 use inkwell::AddressSpace;
 use inkwell::{builder::Builder, values::FunctionValue};
@@ -37,7 +37,7 @@ impl<'ctx> CodeGen<'ctx> {
                 NodeTypes::Function(func) => {
                     let function = self.gen_func(func)?;
                     self.scope = Some((function, func));
-                    let _block = self.gen_block(function, &func.body)?;
+                    let _block = self.gen_block(function, &func.body, Some("entry"))?;
                 }
                 _ => todo!("compile this node"),
             }
@@ -73,14 +73,17 @@ impl<'ctx> CodeGen<'ctx> {
         &self,
         func: FunctionValue<'ctx>,
         nodes: &'ctx Vec<Node>,
+        block_name: Option<&str>,
     ) -> CompileResult<BasicBlock<'ctx>> {
-        let block = self.context.append_basic_block(func, "entry");
+        let block_name = block_name.unwrap_or("entry");
+        let block = self.context.append_basic_block(func, block_name);
         self.builder.position_at_end(block);
+
         for node in nodes {
             match &node.node_type {
                 NodeTypes::Variable(var) => {
                     if let NodeTypes::Value(value) = &node.right.as_ref().unwrap().node_type {
-                        self.gen_alloca_store(var, value)?;
+                        self.gen_alloca_store(var, value, Some(block_name))?;
                     };
 
                     if let NodeTypes::FunctionCall(call) = &node.right.as_ref().unwrap().node_type {
@@ -88,21 +91,21 @@ impl<'ctx> CodeGen<'ctx> {
                             panic!("the right node of the function call did not contain any arguments.")
                         };
                         // todo: type check for function call
-                        let _ = self.gen_func_call(call, arguments, Some(&var.ident.name))?;
+                        let _ = self.gen_func_call(call, arguments, Some(&var.ident.name), Some(block_name))?;
                     }
                 }
                 NodeTypes::FunctionCall(call) => {
                     let Some(args) = call.get_args(node) else {return Err("expected the arguments of a function to be in the left branch".into())};
-                    self.gen_func_call(call, &args, None)?;
+                    self.gen_func_call(call, &args, None, Some(block_name))?;
                 }
                 NodeTypes::LogicalStatement(statement) => {
-                    todo!("Compile logical statements")
+                    self.gen_logcal_statement(statement, Some(block_name))?;
                 }
                 NodeTypes::Assignment(assignment) => {
-                    self.gen_reassignment(assignment, node)?;
+                    self.gen_reassignment(assignment, node, Some(block_name))?;
                 }
                 NodeTypes::Return => {
-                    let _ = self.gen_return(node);
+                    let _ = self.gen_return(node, Some(block_name));
                 }
                 node_type => unimplemented!("Support for {node_type:#?} in blocks is not yet implemented. found this value on line: {}", node.line)
             }
@@ -110,8 +113,8 @@ impl<'ctx> CodeGen<'ctx> {
         Ok(block)
     }
 
-    fn gen_reassignment(&self, assignment: &'ctx Assignment, node: &'ctx Node) -> CompileResult<()> {
-        let get_ident = self.get_ident(&assignment.assigns_to.name)?;
+    fn gen_reassignment(&self, assignment: &'ctx Assignment, node: &'ctx Node, block_name: Option<&str>) -> CompileResult<()> {
+        let get_ident = self.get_ident(&assignment.assigns_to.name, block_name)?;
         if get_ident.is_pointer_value() {
             let Some(op) = assignment.get_op(node) else { return Err("expected a operator for gen_reassignment".into()) };
             let Some(value) = assignment.get_value(node) else { return Err("expected a value for gen_reassignment".into()) };
@@ -119,7 +122,23 @@ impl<'ctx> CodeGen<'ctx> {
             match op {
                 Operator::Eq => {
                     let ptr = get_ident.into_pointer_value();  
-                    self.gen_store(value, ptr, None);
+                    self.gen_store(value, ptr, None, block_name);
+                }
+                Operator::PlusIs => {
+                    let ptr = get_ident.into_pointer_value();  
+                    let load = self.builder.build_load(ptr, "load_val");
+                    match load {
+                        BasicValueEnum::IntValue(int_value) => {
+                            let TypeValues::I32(value) = value.value else {
+                                return Err("expected integer when performing addition".into())
+                            };
+                            let int = self.context.i32_type();
+                            let add_value = int.const_int(value as u64, false);
+                            let add = self.builder.build_int_add(int_value, add_value, "add_op");
+                            self.builder.build_store(ptr, add);
+                        }
+                        _ => return Err("Expected a integer for additation operator".into())
+                    }
                 }
                 _ => return Err(format!("the operator {:#?} is not a valid reassignment operator.", op).into())
             }
@@ -127,7 +146,7 @@ impl<'ctx> CodeGen<'ctx> {
         Ok(())
     }
 
-    fn gen_return(&self, return_node: &'ctx Node) -> CompileResult<()> {
+    fn gen_return(&self, return_node: &'ctx Node, block_name: Option<&str>) -> CompileResult<()> {
         let Some(value_node) = &return_node.right else { panic!("Expected right node type of return node to have a value") };
         if let NodeTypes::Value(value) = &value_node.node_type {
             match &value.value {
@@ -165,7 +184,7 @@ impl<'ctx> CodeGen<'ctx> {
                     return Ok(());
                 }
                 TypeValues::Identifier(ident) => {
-                    let ident = self.get_ident(&ident)?;
+                    let ident = self.get_ident(&ident, block_name)?;
                     let value = ident.as_any_value_enum();
                     match value.get_type() {
                         AnyTypeEnum::IntType(_) => {
@@ -200,7 +219,7 @@ impl<'ctx> CodeGen<'ctx> {
         if let NodeTypes::FunctionCall(call) = &value_node.node_type {
             let Some(arguments) = call.get_args(&value_node) else { panic!("Expected function call node to have arguments") };
             if let Some(func) = self.module.get_function(&call.calls_to.name) {
-                let args = self.gen_args(arguments)?;
+                let args = self.gen_args(arguments, block_name)?;
                 let call: CallSiteValue<'ctx> = self.builder.build_call(func, &args, "return");
                 let call_type = call.as_any_value_enum();
 
@@ -209,24 +228,28 @@ impl<'ctx> CodeGen<'ctx> {
                 if call_type.is_int_value() {
                     let call = call_type.into_int_value();
                     self.builder.build_return(Some(&call));
+                    return Ok(())
                 }
 
                 if call_type.is_array_value() {
                     let call = call_type.into_array_value();
                     self.builder.build_return(Some(&call));
+                    return Ok(())
                 }
 
                 if call_type.is_float_value() {
                     let call = call_type.into_array_value();
                     self.builder.build_return(Some(&call));
+                    return Ok(())
                 }
 
                 if call_type.is_pointer_value() {
                     let call = call_type.into_array_value();
                     self.builder.build_return(Some(&call));
+                    return Ok(());
                 }
-
-                return Ok(());
+                self.builder.build_return(None);
+                return Ok(())
             }
             return Err(format!("Couldn't find any function named: {}", call.calls_to.name).into());
         }
@@ -278,16 +301,16 @@ impl<'ctx> CodeGen<'ctx> {
         }
     }
 
-    fn gen_alloca_store(&self, variable: &'ctx Variable, value: &'ctx Value) -> CompileResult<()> {
+    fn gen_alloca_store(&self, variable: &'ctx Variable, value: &'ctx Value, block_name: Option<&str>) -> CompileResult<()> {
         if variable.var_type.is_array {
             let arr_type = self.gen_type_array(&variable.var_type)?;
             let alloc = self.builder.build_alloca(arr_type, &variable.ident.name);
-            self.gen_store(value, alloc, Some(&variable.var_type));
+            self.gen_store(value, alloc, Some(&variable.var_type), block_name);
             Ok(())
         } else {
             let var_type = self.gen_type(&variable.var_type)?;
             let alloc = self.builder.build_alloca(var_type, &variable.ident.name);
-            self.gen_store(value, alloc, Some(&variable.var_type));
+            self.gen_store(value, alloc, Some(&variable.var_type), block_name);
             Ok(())
         }
     }
@@ -305,7 +328,7 @@ impl<'ctx> CodeGen<'ctx> {
         iter
     }
 
-    fn gen_store(&self, value: &'ctx Value, alloc_ptr: PointerValue, type_of: Option<&'ctx Type>) {
+    fn gen_store(&self, value: &'ctx Value, alloc_ptr: PointerValue, type_of: Option<&'ctx Type>, block_name: Option<&str>) {
         match &value.value {
             TypeValues::I8(num) => {
                 let i8_type = self.context.i8_type();
@@ -336,6 +359,15 @@ impl<'ctx> CodeGen<'ctx> {
                 let type_of = type_of.unwrap();
                 let array = self.gen_array_values(&arr, type_of);
                 self.builder.build_store(alloc_ptr, array);
+            }
+            TypeValues::Identifier(ident) => {
+                let Ok(ident) = self.get_ident(ident, block_name) else {
+                    panic!("temp: no such ident: {ident}");
+                };
+                if ident.is_pointer_value() {
+                    let load = self.builder.build_load(ident.into_pointer_value(), "load_for_store");
+                    self.builder.build_store(alloc_ptr, load);
+                }
             }
             typeofval => unimplemented!("typeof {typeofval:#?} is not supported as of right now"),
         }
@@ -410,6 +442,7 @@ impl<'ctx> CodeGen<'ctx> {
     fn gen_args(
         &self,
         arguments: &'ctx Vec<Value>,
+        block_name: Option<&str>
     ) -> CompileResult<Vec<BasicMetadataValueEnum<'ctx>>> {
         let mut args = Vec::new();
         for arg in arguments {
@@ -450,7 +483,7 @@ impl<'ctx> CodeGen<'ctx> {
                     args.push(value.into());
                 }
                 TypeValues::FunctionCall(calls, arguments) => {
-                    let call = self.gen_func_call(calls, arguments, None)?;
+                    let call = self.gen_func_call(calls, arguments, None, block_name)?;
                     let call_type = call.as_any_value_enum();
 
                     // Todo: Add check for the function return type and the calls return type |
@@ -472,12 +505,12 @@ impl<'ctx> CodeGen<'ctx> {
                 }
                 TypeValues::Identifier(ident) if arg.is_ptr => {
                     // TODO: FIX THIS DON'T CONTINUE RETURN ERR, THIS IS JUST FOR NOW, OKAY
-                    let Ok(value) = self.get_ident(&ident) else { continue };
+                    let Ok(value) = self.get_ident(&ident, block_name) else { continue };
                     args.push(value.into_pointer_value().into());
                 }
                 TypeValues::Identifier(ident) => {
                     // TODO: FIX THIS DON'T CONTINUE RETURN ERR, THIS IS JUST FOR NOW, OKAY
-                    let Ok(value) = self.get_ident(&ident) else { continue };
+                    let Ok(value) = self.get_ident(&ident, block_name) else { continue };
                     if value.is_pointer_value() {
                         let load_value = self
                             .builder
@@ -498,16 +531,17 @@ impl<'ctx> CodeGen<'ctx> {
         function_call: &'ctx FunctionCall,
         arguments: &'ctx Vec<Value>,
         call_name: Option<&str>,
+        block_name: Option<&str>
     ) -> CompileResult<CallSiteValue<'ctx>> {
         if let Some(called_func) = self.module.get_function(&function_call.calls_to.name) {
-            let args = &self.gen_args(arguments)?;
+            let args = &self.gen_args(arguments, block_name)?;
             let call_name = call_name.unwrap_or("call");
             let value = self.builder.build_call(called_func, args, call_name);
             return Ok(value);
         }
 
         if let Some(c_func) = self.gen_c_function(&function_call.calls_to.name) {
-            let args = &self.gen_args(arguments)?;
+            let args = &self.gen_args(arguments, block_name)?;
             let call_name = call_name.unwrap_or("call");
             let value = self.builder.build_call(c_func, args, call_name);
             return Ok(value);
@@ -522,13 +556,16 @@ impl<'ctx> CodeGen<'ctx> {
 }
 
 impl<'ctx> CodeGen<'ctx> {
-    fn get_ident(&self, name: &str) -> CompileResult<BasicMetadataValueEnum<'ctx>> {
+    fn get_ident(&self, name: &str, current_block: Option<&str>) -> CompileResult<BasicMetadataValueEnum<'ctx>> {
         let Some((function, function_node)) = self.scope else {
             return Err(format!("Tried to get value with the name {}, but the current scope is none", name).into());
         };
-        let Some(block) = function.get_first_basic_block() else {
+
+        let blocks = function.get_basic_blocks();
+        let Some(current_block) = blocks.iter().find(|x| x.get_name().to_str() == Ok(current_block.unwrap_or("entry"))) else {
             return Err(format!("Tried to get value with the name {}, but the current scope is none", name).into());
         };
+
 
         if let Some(param) = function_node.get_param_index_with_name(&name) {
             let Some(param) = function.get_nth_param(param as u32) else {
@@ -537,7 +574,7 @@ impl<'ctx> CodeGen<'ctx> {
             return Ok(param.into());
         };
 
-        let Some(ident) = block.get_instruction_with_name(&name) else {
+        let Some(ident) = current_block.get_instruction_with_name(&name) else {
             return Err(format!("There is no variable called {}", name).into());
         };
 
