@@ -130,15 +130,101 @@ impl<'ctx> CodeGen<'ctx> {
                     let load = self.builder.build_load(ptr, "load_val");
                     match load {
                         BasicValueEnum::IntValue(int_value) => {
-                            let TypeValues::I32(value) = value.value else {
-                                return Err("expected integer when performing addition".into())
+                            if let TypeValues::I32(value) = value.value {
+                                let int = self.context.i32_type();
+                                let add_value = int.const_int(value as u64, false);
+                                let add = self.builder.build_int_add(int_value, add_value, "add_op");
+                                self.builder.build_store(ptr, add);
                             };
-                            let int = self.context.i32_type();
-                            let add_value = int.const_int(value as u64, false);
-                            let add = self.builder.build_int_add(int_value, add_value, "add_op");
-                            self.builder.build_store(ptr, add);
+                            if let TypeValues::Identifier(ident) = &value.value {
+                                let get_ident = self.get_ident(&ident, block_name)?;
+
+                                if get_ident.is_pointer_value() {
+                                    let load = self.builder.build_load(get_ident.into_pointer_value(), "load_other");
+                                    match load {
+                                        BasicValueEnum::IntValue(add_value) => {
+                                            let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                            self.builder.build_store(ptr, add);
+                                        }
+                                        _ => return Err("Expected a integer for TimesIs operator".into())
+                                    }
+                                } 
+                                else if get_ident.is_int_value() {
+                                    let add_value = get_ident.into_int_value(); 
+                                    let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                    self.builder.build_store(ptr, add);
+                                }
+                            }
                         }
                         _ => return Err("Expected a integer for additation operator".into())
+                    }
+                }
+                Operator::TimesIs => {
+                    let ptr = get_ident.into_pointer_value();  
+                    let load = self.builder.build_load(ptr, "load_val");
+                    match load {
+                        BasicValueEnum::IntValue(int_value) => {
+                            if let TypeValues::I32(value) = value.value {
+                                let int = self.context.i32_type();
+                                let add_value = int.const_int(value as u64, false);
+                                let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                self.builder.build_store(ptr, add);
+                            };
+                            if let TypeValues::Identifier(ident) = &value.value {
+                                let get_ident = self.get_ident(&ident, block_name)?;
+
+                                if get_ident.is_pointer_value() {
+                                    let load = self.builder.build_load(get_ident.into_pointer_value(), "load_other");
+                                    match load {
+                                        BasicValueEnum::IntValue(add_value) => {
+                                            let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                            self.builder.build_store(ptr, add);
+                                        }
+                                        _ => return Err("Expected a integer for TimesIs operator".into())
+                                    }
+                                } 
+                                else if get_ident.is_int_value() {
+                                    let add_value = get_ident.into_int_value(); 
+                                    let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                    self.builder.build_store(ptr, add);
+                                }
+                            }
+                        }
+                        _ => return Err("Expected a integer for TimesIs operator".into())
+                    }
+                }
+                Operator::MinusIs => {
+                    let ptr = get_ident.into_pointer_value();  
+                    let load = self.builder.build_load(ptr, "load_val");
+                    match load {
+                        BasicValueEnum::IntValue(int_value) => {
+                            if let TypeValues::I32(value) = value.value {
+                                let int = self.context.i32_type();
+                                let add_value = int.const_int(value as u64, false);
+                                let add = self.builder.build_int_sub(int_value, add_value, "add_op");
+                                self.builder.build_store(ptr, add);
+                            };
+                            if let TypeValues::Identifier(ident) = &value.value {
+                                let get_ident = self.get_ident(&ident, block_name)?;
+
+                                if get_ident.is_pointer_value() {
+                                    let load = self.builder.build_load(get_ident.into_pointer_value(), "load_other");
+                                    match load {
+                                        BasicValueEnum::IntValue(add_value) => {
+                                            let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                            self.builder.build_store(ptr, add);
+                                        }
+                                        _ => return Err("Expected a integer for TimesIs operator".into())
+                                    }
+                                } 
+                                else if get_ident.is_int_value() {
+                                    let add_value = get_ident.into_int_value(); 
+                                    let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                    self.builder.build_store(ptr, add);
+                                }
+                            }
+                        }
+                        _ => return Err("Expected a integer for MinusIs operator".into())
                     }
                 }
                 _ => return Err(format!("the operator {:#?} is not a valid reassignment operator.", op).into())
@@ -196,6 +282,10 @@ impl<'ctx> CodeGen<'ctx> {
                         }
                         AnyTypeEnum::VoidType(_) => {
                             self.builder.build_return(None);
+                        }
+                        AnyTypeEnum::PointerType(ptr) => {
+                            let load = self.builder.build_load(ident.into_pointer_value(), "ret_laod");
+                            self.builder.build_return(Some(&load));
                         }
                         typeof_return => unimplemented!(
                             "Typeof {typeof_return} can not be used for returning values"

@@ -35,6 +35,8 @@ impl From<&str> for Tokens {
             "&&" => Tokens::Op(Operator::AndAnd),
             "||" => Tokens::Op(Operator::OrOr),
             "+=" => Tokens::Op(Operator::PlusIs),
+            "*=" => Tokens::Op(Operator::TimesIs),
+            "-=" => Tokens::Op(Operator::MinusIs),
             // All Keywords
             "return" => Tokens::Kw(Keywords::Return),
             "let" => Tokens::Kw(Keywords::Let),

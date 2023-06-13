@@ -90,6 +90,10 @@ pub enum Operator {
     Times,
     /// +=
     PlusIs,
+    /// *=
+    TimesIs,
+    /// -=
+    MinusIs,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -284,6 +288,8 @@ pub trait Tokenize {
     /// Expects a '&' character to be the previous character
     fn token_and(&mut self, line: usize) -> Token;
     fn tokens_plus(&mut self, line: usize) -> Token;
+    fn tokens_times(&mut self, line: usize) -> Token;
+    fn tokens_minus(&mut self, line: usize) -> Token;
 }
 
 impl Tokenize for Tokenizer {
@@ -596,7 +602,7 @@ impl Tokenize for Tokenizer {
                         self.advance_back(1);
                         return Token::new(line, '+'.into(), "+");
                     }
-                }
+                },
                 None => {
                     return Token::new(line, '+'.into(), "+");
                 }
@@ -606,6 +612,62 @@ impl Tokenize for Tokenizer {
             line,
             Tokens::InvalidToken(TokenErrorMessages::TokenInvalid(
                 "Got a call to token_plus but there was no previous character present.".to_string(),
+            )),
+            "no prev token",
+        )
+    }
+
+    fn tokens_times(&mut self, line: usize) -> Token {
+        if let Some(prev) = self.prev_char {
+            assert_eq!(prev, '*');
+            match self.next() {
+                Some(char) => match char {
+                    '=' => {
+                        return Token::new(line, "*=".into(), "*=");
+                    }
+                    _ => {
+                        self.advance_back(1);
+                        return Token::new(line, '*'.into(), "*");
+                    }
+                },
+                None => {
+                    return Token::new(line, '*'.into(), "*");
+                }
+            }
+        }
+        Token::new(
+            line,
+            Tokens::InvalidToken(TokenErrorMessages::TokenInvalid(
+                "Got a call to token_times but there was no previous character present."
+                    .to_string(),
+            )),
+            "no prev token",
+        )
+    }
+
+    fn tokens_minus(&mut self, line: usize) -> Token {
+        if let Some(prev) = self.prev_char {
+            assert_eq!(prev, '-');
+            match self.next() {
+                Some(char) => match char {
+                    '=' => {
+                        return Token::new(line, "-=".into(), "-=");
+                    }
+                    _ => {
+                        self.advance_back(1);
+                        return Token::new(line, '-'.into(), "-");
+                    }
+                },
+                None => {
+                    return Token::new(line, '-'.into(), "-");
+                }
+            }
+        }
+        Token::new(
+            line,
+            Tokens::InvalidToken(TokenErrorMessages::TokenInvalid(
+                "Got a call to token_minus but there was no previous character present."
+                    .to_string(),
             )),
             "no prev token",
         )
@@ -634,6 +696,8 @@ pub trait Lexer {
                 'a'..='z' | 'A'..='Z' => tokens.push(tokenizer.token_identifier(line)),
                 '/' => tokens.push(tokenizer.token_comment(line)),
                 '+' => tokens.push(tokenizer.tokens_plus(line)),
+                '*' => tokens.push(tokenizer.tokens_times(line)),
+                '-' => tokens.push(tokenizer.tokens_minus(line)),
                 token => {
                     let token = Token::new(line, token.into(), &token.to_string());
                     if let Tokens::InvalidToken(_) = token.token_type {
