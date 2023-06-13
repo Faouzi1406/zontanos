@@ -3,22 +3,24 @@
 pub mod zonc;
 mod lep_codegen;
 
+use inkwell::values::{PointerValue, BasicValueEnum};
+use crate::parser_v2::ast::Assignment;
+use crate::zon_parser::lexer::Operator;
 use inkwell::basic_block::BasicBlock;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use inkwell::types::{AnyTypeEnum, ArrayType, BasicMetadataTypeEnum, BasicType};
 use inkwell::values::{
     AnyValue, AnyValueEnum, ArrayValue, BasicMetadataValueEnum, CallSiteValue, IntValue,
-    PointerValue, BasicValueEnum,
 };
 use inkwell::AddressSpace;
 use inkwell::{builder::Builder, values::FunctionValue};
 use std::error::Error;
 use crate::parser_v2::ast::{
     Ast, Function, FunctionCall, Node, NodeTypes, Paramater, Type, TypeValues, Types, Value,
-    Variable, Assignment,
+    Variable,
 };
-use crate::zon_parser::lexer::Operator;
+
 use self::zonc::GenC;
 
 pub struct CodeGen<'ctx> {
@@ -112,7 +114,6 @@ impl<'ctx> CodeGen<'ctx> {
         }
         Ok(block)
     }
-
     fn gen_reassignment(&self, assignment: &'ctx Assignment, node: &'ctx Node, block_name: Option<&str>) -> CompileResult<()> {
         let get_ident = self.get_ident(&assignment.assigns_to.name, block_name)?;
         if get_ident.is_pointer_value() {
