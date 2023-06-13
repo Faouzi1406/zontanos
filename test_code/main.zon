@@ -29,11 +29,39 @@ fn recurse(value: i32, limit: i32) i32 {
 		v += 1;
 	 	return recurse(v, limit);
 	}
+
 	return 18
 }
 
+fn factorial(n:i32) i32 {
+	if n <= 1 {
+		return 1
+	} else {
+		let b: i32 = n; 
+		let c: i32 = n;
+
+		b -= 1;
+
+		let fact: i32 = factorial(b)
+		c *= fact;
+
+		return c
+	}
+}
+
+fn testTimesIs() void {
+	let value: i32 = 10;
+	value -= 200
+	printf(^"Value is now: %d", value)
+	println(^";")
+	return void;
+}
+
 fn main() void {
-	let fun: i32 = recurse(0, 10)
-	println(^"this is kinda stupid..")
+	let fun: i32 = recurse(0, 1000)
+	println(^"faouzi")
+	testTimesIs()
+	let fact: i32 = factorial(10)
+	printf(^"fact = %d", fact)
 	return void
 }
