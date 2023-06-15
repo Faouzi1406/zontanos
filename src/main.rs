@@ -14,6 +14,20 @@ use std::io::Write;
 use std::{fs, process::exit};
 use zontanos::zon_parser::lexer::{Lexer, Tokenizer};
 
+fn factorial(n:i64) -> i64 {
+    if n <= 1 {
+        return 1;
+    } else {
+        let mut a = n;
+        let mut b = n;
+
+        a = a - 1;
+        b = b * factorial(a);
+
+        return b
+    }
+}
+
 fn main() -> Result<(), &'static str> {
     let string_vars = fs::read_to_string("./test_code/main.zon").unwrap_or(
         "Coulnd't read file at ./test_code/main.zon, you are probably not in the root of project."
@@ -48,6 +62,7 @@ fn main() -> Result<(), &'static str> {
     };
         return Ok(());
     };
+
 
     Ok(())
 }

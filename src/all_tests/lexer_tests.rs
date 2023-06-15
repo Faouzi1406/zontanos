@@ -113,7 +113,7 @@ pub fn test_nq_bang_tokens() {
 
 #[test]
 pub fn test_string_and_numbers() {
-    let str = "\"Hello world!\" 123456 12.12.12 12_12_12 120000\"Hello world!\"";
+    let str = "\"Hello world!\" 123456 12.12.12 12_12_12 120000\"Hello world!\" -10";
     let mut tokenizer = Tokenizer::new(str);
     let lexer = Tokenizer::lex(&mut tokenizer);
 
@@ -152,6 +152,12 @@ pub fn test_string_and_numbers() {
     };
     assert_eq!(fifth_token.token_type, Tokens::String);
     assert_eq!(fifth_token.value, "Hello world!");
+
+    let Some(fifth_token) = lexer.get(6) else {
+        panic_test!("Lexer test more tokens", "Error expected the fifth token of of lexer tokens to be Some(String) but got None");
+    };
+    assert_eq!(fifth_token.token_type, Tokens::NegativeNumber);
+    assert_eq!(fifth_token.value, "10");
 }
 
 #[test]

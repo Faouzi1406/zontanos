@@ -143,7 +143,7 @@ impl<'ctx> CodeGen<'ctx> {
                                     let load = self.builder.build_load(get_ident.into_pointer_value(), "load_other");
                                     match load {
                                         BasicValueEnum::IntValue(add_value) => {
-                                            let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                            let add = self.builder.build_int_add(int_value, add_value, "add_op");
                                             self.builder.build_store(ptr, add);
                                         }
                                         _ => return Err("Expected a integer for TimesIs operator".into())
@@ -151,8 +151,20 @@ impl<'ctx> CodeGen<'ctx> {
                                 } 
                                 else if get_ident.is_int_value() {
                                     let add_value = get_ident.into_int_value(); 
-                                    let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                    let add = self.builder.build_int_add(int_value, add_value, "add_op");
                                     self.builder.build_store(ptr, add);
+                                }
+                            }
+                            if let TypeValues::FunctionCall(call, arguments) = &value.value {
+                                let call = self.gen_func_call(call, arguments, Some("tiscall"), block_name)?;
+                                let value = call.as_any_value_enum();
+
+                                match value {
+                                    AnyValueEnum::IntValue(add_value) => {
+                                        let add = self.builder.build_int_add(int_value, add_value, "add_op");
+                                        self.builder.build_store(ptr, add);
+                                    }
+                                    _ => return Err("Expected a integer for TimesIs operator".into())
                                 }
                             }
                         }
@@ -167,7 +179,7 @@ impl<'ctx> CodeGen<'ctx> {
                             if let TypeValues::I32(value) = value.value {
                                 let int = self.context.i32_type();
                                 let add_value = int.const_int(value as u64, false);
-                                let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                let add = self.builder.build_int_mul(int_value, add_value, "times_op");
                                 self.builder.build_store(ptr, add);
                             };
                             if let TypeValues::Identifier(ident) = &value.value {
@@ -177,7 +189,7 @@ impl<'ctx> CodeGen<'ctx> {
                                     let load = self.builder.build_load(get_ident.into_pointer_value(), "load_other");
                                     match load {
                                         BasicValueEnum::IntValue(add_value) => {
-                                            let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                            let add = self.builder.build_int_mul(int_value, add_value, "times_op");
                                             self.builder.build_store(ptr, add);
                                         }
                                         _ => return Err("Expected a integer for TimesIs operator".into())
@@ -185,8 +197,20 @@ impl<'ctx> CodeGen<'ctx> {
                                 } 
                                 else if get_ident.is_int_value() {
                                     let add_value = get_ident.into_int_value(); 
-                                    let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                    let add = self.builder.build_int_mul(int_value, add_value, "times_op");
                                     self.builder.build_store(ptr, add);
+                                }
+                            }
+                            if let TypeValues::FunctionCall(call, arguments) = &value.value {
+                                let call = self.gen_func_call(call, arguments, Some("tiscall"), block_name)?;
+                                let value = call.as_any_value_enum();
+
+                                match value {
+                                    AnyValueEnum::IntValue(add_value) => {
+                                        let add = self.builder.build_int_mul(int_value, add_value, "times_op");
+                                        self.builder.build_store(ptr, add);
+                                    }
+                                    _ => return Err("Expected a integer for TimesIs operator".into())
                                 }
                             }
                         }
@@ -201,7 +225,7 @@ impl<'ctx> CodeGen<'ctx> {
                             if let TypeValues::I32(value) = value.value {
                                 let int = self.context.i32_type();
                                 let add_value = int.const_int(value as u64, false);
-                                let add = self.builder.build_int_sub(int_value, add_value, "add_op");
+                                let add = self.builder.build_int_sub(int_value, add_value, "minus_op");
                                 self.builder.build_store(ptr, add);
                             };
                             if let TypeValues::Identifier(ident) = &value.value {
@@ -211,7 +235,7 @@ impl<'ctx> CodeGen<'ctx> {
                                     let load = self.builder.build_load(get_ident.into_pointer_value(), "load_other");
                                     match load {
                                         BasicValueEnum::IntValue(add_value) => {
-                                            let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                            let add = self.builder.build_int_sub(int_value, add_value, "minus_op");
                                             self.builder.build_store(ptr, add);
                                         }
                                         _ => return Err("Expected a integer for TimesIs operator".into())
@@ -219,8 +243,20 @@ impl<'ctx> CodeGen<'ctx> {
                                 } 
                                 else if get_ident.is_int_value() {
                                     let add_value = get_ident.into_int_value(); 
-                                    let add = self.builder.build_int_mul(int_value, add_value, "add_op");
+                                    let add = self.builder.build_int_sub(int_value, add_value, "minus_op");
                                     self.builder.build_store(ptr, add);
+                                }
+                            }
+                            if let TypeValues::FunctionCall(call, arguments) = &value.value {
+                                let call = self.gen_func_call(call, arguments, Some("tiscall"), block_name)?;
+                                let value = call.as_any_value_enum();
+
+                                match value {
+                                    AnyValueEnum::IntValue(add_value) => {
+                                        let add = self.builder.build_int_sub(int_value, add_value, "minus_op");
+                                        self.builder.build_store(ptr, add);
+                                    }
+                                    _ => return Err("Expected a integer for TimesIs operator".into())
                                 }
                             }
                         }
@@ -283,8 +319,8 @@ impl<'ctx> CodeGen<'ctx> {
                         AnyTypeEnum::VoidType(_) => {
                             self.builder.build_return(None);
                         }
-                        AnyTypeEnum::PointerType(ptr) => {
-                            let load = self.builder.build_load(ident.into_pointer_value(), "ret_laod");
+                        AnyTypeEnum::PointerType(_) => {
+                            let load = self.builder.build_load(ident.into_pointer_value(), "ret_load");
                             self.builder.build_return(Some(&load));
                         }
                         typeof_return => unimplemented!(

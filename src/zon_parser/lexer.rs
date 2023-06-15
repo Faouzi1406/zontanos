@@ -19,6 +19,8 @@ pub enum Tokens {
     String,
     /// any valid sequence of numbers that isn't a floating point number  
     Number,
+    /// Any valid negative number '-11111'
+    NegativeNumber,
     /// any valid sequence of numbers that is a floating point number
     FloatNumber,
     /// true
@@ -652,6 +654,19 @@ impl Tokenize for Tokenizer {
                 Some(char) => match char {
                     '=' => {
                         return Token::new(line, "-=".into(), "-=");
+                    }
+                    '0'..='9'  => {
+                        let mut str_nums = String::from(char);
+                        while let Some(char) = self.next() {
+                            match char {
+                                '0'..='9' => str_nums.push(char),
+                                _ => {
+                                    self.advance_back(1);
+                                    return Token::new(line, Tokens::NegativeNumber, &str_nums);
+                                }
+                            }
+                        }
+                        return Token::new(line, Tokens::NegativeNumber, &str_nums);
                     }
                     _ => {
                         self.advance_back(1);

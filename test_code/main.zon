@@ -18,50 +18,28 @@ fn welkom() void {
 	return void
 }
 
-fn recurse(value: i32, limit: i32) i32 {
-	printf(^"oaky %d %c", value,'\n')
-
-	if value >= limit {
-		println(^"limit reached.")
+fn recurse(value: i32, range: i32) i32 {
+	printf(^"%d%c", value,'\n')
+	if range >= value  {
 		return value;
 	} else {
+		printf(^"%d%c", value,'\n')
+
 		let v: i32 = value;
 		v += 1;
-	 	return recurse(v, limit);
+	 	return recurse(v, range);
 	}
 
 	return 18
 }
 
-fn factorial(n:i32) i32 {
-	if n <= 1 {
-		return 1
-	} else {
-		let b: i32 = n; 
-		let c: i32 = n;
-
-		b -= 1;
-
-		let fact: i32 = factorial(b)
-		c *= fact;
-
-		return c
-	}
-}
-
-fn testTimesIs() void {
-	let value: i32 = 10;
-	value -= 200
-	printf(^"Value is now: %d", value)
-	println(^";")
-	return void;
-}
-
 fn main() void {
-	let fun: i32 = recurse(0, 1000)
-	println(^"faouzi")
-	testTimesIs()
-	let fact: i32 = factorial(10)
-	printf(^"fact = %d", fact)
-	return void
+	recurse(0, 200)
+	if 10 > 20 {
+		printf(^"10 is more then 20");
+		return void;
+	} else {
+		printf(^"10 is not more then 20");
+		return void;
+	}
 }
