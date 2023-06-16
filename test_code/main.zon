@@ -3,8 +3,8 @@ fn println(value: i8^) i32 {
 	return chars
 }
 
-fn readChar() i8 {	
-	let value: char = getchar();
+fn readChar() i32 {	
+	let value: char = getchar()
 	return value
 }
 
@@ -21,25 +21,46 @@ fn welkom() void {
 fn recurse(value: i32, range: i32) i32 {
 	printf(^"%d%c", value,'\n')
 	if range >= value  {
-		return value;
+		return value
 	} else {
 		printf(^"%d%c", value,'\n')
 
-		let v: i32 = value;
-		v += 1;
-	 	return recurse(v, range);
+		let v: i32 = value
+		v += 1
+	 	return recurse(v, range)
 	}
 
 	return 18
 }
 
-fn main() void {
-	recurse(0, 200)
-	if 10 > 20 {
-		printf(^"10 is more then 20");
-		return void;
+fn print_all_chars() void {
+	let value: i32 = getchar()
+	printf(^"%c", value)
+
+
+	if value == -1 {
+		println(^"done")
+		return void
 	} else {
-		printf(^"10 is not more then 20");
-		return void;
+		print_all_chars()
+		return void
+	}
+}
+
+fn main() void {
+	let testing: i32 = (1 + 2 * 3)
+	let some: i32 = (10 - 20 + 20 * 20 * (20 / 10) + 10)
+	printf(^"First try... {%d} %c", testing,'\n')
+
+	// This is for later, not remove, nor keep, really...
+	//recurse(0, 200)
+	//print_all_chars()
+
+	if 10 > 20 {
+		printf(^"10 is more then 20")
+		return void
+	} else {
+		printf(^"10 is not more then 20")
+		return void
 	}
 }

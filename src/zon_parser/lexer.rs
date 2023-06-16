@@ -35,8 +35,6 @@ pub enum Tokens {
     Comma,
     /// !
     Bang,
-    /// /
-    Slash,
     /// .
     Dot,
     /// A tab
@@ -96,6 +94,8 @@ pub enum Operator {
     TimesIs,
     /// -=
     MinusIs,
+    /// /
+    Slash,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -190,7 +190,7 @@ impl std::error::Error for TokenErrorMessages {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub line: usize,
     pub token_type: Tokens,
@@ -656,7 +656,9 @@ impl Tokenize for Tokenizer {
                         return Token::new(line, "-=".into(), "-=");
                     }
                     '0'..='9'  => {
-                        let mut str_nums = String::from(char);
+                        let mut str_nums = String::from("-");
+                        str_nums.push(char);
+
                         while let Some(char) = self.next() {
                             match char {
                                 '0'..='9' => str_nums.push(char),

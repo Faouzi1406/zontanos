@@ -4,10 +4,9 @@
 
 pub mod errors;
 pub mod lep;
-pub mod math;
 
 use super::ast::{
-    Assignment, Ast, FunctionCall, Ident, Node, Paramater, Type, Types, Value, Variable,
+    Assignment, Ast, FunctionCall, Ident, Math, Node, Paramater, Type, Types, Value, Variable,
 };
 use crate::{
     parser_v2::ast::{Function, NodeTypes, TypeValues},
@@ -54,6 +53,7 @@ impl Parser {
                     let function = self.parse_fn_expr()?;
                     ast.body.push(function);
                 }
+                Tokens::Comment => continue,
                 kw => todo!("found {kw:#?}"),
             }
         }
@@ -276,7 +276,11 @@ impl Parser {
         };
 
         match value_expr.token_type {
-            Tokens::Number | Tokens::Char | Tokens::FloatNumber | Tokens::String => {
+            Tokens::Number
+            | Tokens::NegativeNumber
+            | Tokens::Char
+            | Tokens::FloatNumber
+            | Tokens::String => {
                 value.value = expected_type.type_value_convert(&value_expr.value)?;
                 return Ok(Node::new(NodeTypes::Value(value), value_expr.line));
             }
@@ -300,6 +304,16 @@ impl Parser {
                 return Ok(Node::new(
                     NodeTypes::Value(Value {
                         value: TypeValues::None,
+                        is_ptr: false,
+                    }),
+                    value_expr.line,
+                ));
+            }
+            Tokens::OpenBrace => {
+                let math_statement = self.parse_math_statement()?;
+                return Ok(Node::new(
+                    NodeTypes::Value(Value {
+                        value: TypeValues::Math(math_statement),
                         is_ptr: false,
                     }),
                     value_expr.line,
@@ -441,6 +455,12 @@ impl Parser {
                 value_holder.value = value;
                 Ok(value_holder)
             }
+            Tokens::NegativeNumber => {
+                let none_type = Types::I32;
+                let value = none_type.type_value_convert(&value.value)?;
+                value_holder.value = value;
+                Ok(value_holder)
+            }
             Tokens::Identifier => {
                 if self.consume_if_next(Tokens::OpenBrace) {
                     self.walk_back(2);
@@ -562,6 +582,7 @@ impl Parser {
                     let return_node = self.parse_return_value(type_expected)?;
                     body.push(return_node);
                 }
+                Tokens::Comment => continue,
                 _ => {
                     return Err(format!(
                         "Found a token that is invalid in the body of a token: {:#?} on line {}",
@@ -611,6 +632,45 @@ impl Parser {
             paramaters,
         };
         Ok(Node::new(NodeTypes::Function(function), line))
+    }
+
+    pub fn parse_math_statement(&mut self) -> ParseResult<Math> {
+        let mut math = Math(Vec::new());
+
+        while let Some(token) = self.next() {
+            match &token.token_type {
+                Tokens::NegativeNumber => math
+                    .0
+                    .push(TypeValues::I32Neg(token.value.parse::<i32>().unwrap())),
+                Tokens::Number => math
+                    .0
+                    .push(TypeValues::I32(token.value.parse::<i32>().unwrap())),
+                Tokens::Op(op) => match op {
+                    Operator::Plus => math.0.push(TypeValues::Operator(op.clone())),
+                    Operator::Times => math.0.push(TypeValues::Operator(op.clone())),
+                    Operator::Slash => math.0.push(TypeValues::Operator(op.clone())),
+                    Operator::Min => math.0.push(TypeValues::Operator(op.clone())),
+                    _ => {
+                        return Err(self.invalid_token_in_expr(
+                            "operator statement",
+                            "mathematical operator expression",
+                        ))
+                    }
+                },
+                Tokens::OpenBrace => {
+                    let math_expr = self.parse_math_statement()?;
+                    math.0.push(TypeValues::Math(math_expr));
+                }
+                Tokens::CloseBrace => return Ok(math),
+                _ => {
+                    return Err(
+                        self.invalid_token_in_expr("math statement", "mathematical expression")
+                    )
+                }
+            }
+        }
+
+        Err(self.expected_end_expr("mathematical statement", ")"))
     }
 }
 

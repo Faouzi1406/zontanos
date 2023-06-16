@@ -36,7 +36,7 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn gen_case(&self, statements: &'ctx Vec<Statements>, in_block: Option<&str>) -> CompileResult<IntValue> {
         let mut stack: LinkedList<IntValue> = LinkedList::new();
-        let mut statements = statements.clone().iter();
+        let mut statements = statements.iter();
 
         while let Some(statement) = statements.next() {
             if let Statements::Or = statement {
@@ -93,7 +93,7 @@ impl<'ctx> CodeGen<'ctx> {
                 let value = self.gen_i32_case(lhs, rhs, IntPredicate::SGE, in_block)?;
                 Ok(value)
             }
-            Statements::OrOr(lhs, rhs) => {
+            Statements::EqEq(lhs, rhs) => {
                 let value = self.gen_i32_case(lhs, rhs, IntPredicate::EQ, in_block)?;
                 Ok(value)
             }
@@ -172,7 +172,7 @@ impl<'ctx> CodeGen<'ctx> {
                     Err("Can't compare none integer values".into())
                 }
             }
-            _ => Err("the statement given couldn't be compared, when comparing values they must be of the same type.".into())
+            (one, other) => Err(format!("the statement given couldn't be compared, when comparing values they must be of the same type. got {one:#?} but other was {other:#?}").into())
         }
     }
 }

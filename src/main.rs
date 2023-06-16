@@ -6,27 +6,12 @@ mod parser_v2;
 mod zon_parser;
 
 use inkwell::context::Context;
-use parser_v2::parser::math::Stack;
 use zontanos::codegen_v2::CodeGen;
 use zontanos::parser_v2::parser::Parser;
 
 use std::io::Write;
 use std::{fs, process::exit};
 use zontanos::zon_parser::lexer::{Lexer, Tokenizer};
-
-fn factorial(n:i64) -> i64 {
-    if n <= 1 {
-        return 1;
-    } else {
-        let mut a = n;
-        let mut b = n;
-
-        a = a - 1;
-        b = b * factorial(a);
-
-        return b
-    }
-}
 
 fn main() -> Result<(), &'static str> {
     let string_vars = fs::read_to_string("./test_code/main.zon").unwrap_or(

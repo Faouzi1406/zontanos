@@ -1,6 +1,8 @@
 //! The Abstract Syntax Tree structure of Zontanos
 #![allow(unused)]
 
+use crate::zon_parser::lexer::{Tokens, Token};
+
 use crate::{ast::variable, zon_parser::lexer::Operator};
 
 use super::parser::lep::LogicalStatement;
@@ -118,6 +120,14 @@ pub struct FunctionCall {
     pub calls_to: Ident,
 }
 
+/// [`Math`]
+/// All the tokens found in the mathematical statement that can either be a number, operator, or
+/// identifier.
+///
+/// All other tokens should throw a parse error
+#[derive(Debug, PartialEq, Clone)]
+pub struct Math(pub Vec<TypeValues>);
+
 /// [`Types`]
 /// All current types in a language
 #[derive(Clone, PartialEq, Debug)]
@@ -142,6 +152,7 @@ pub enum TypeValues {
     I8(i8),
     U8(u8),
     I32(i32),
+    I32Neg(i32),
     F32(f32),
     Char(char),
     String(String),
@@ -149,6 +160,8 @@ pub enum TypeValues {
     Array(Vec<TypeValues>),
     Identifier(String),
     NoneVal(String),
+    Math(Math),
+    Operator(Operator),
     True,
     False,
     None,
@@ -168,6 +181,7 @@ pub enum NodeTypes {
     FunctionCall(FunctionCall),
     Arguments(Vec<Value>),
     LogicalStatement(Box<LogicalStatement>),
+    Math(Math),
     Return,
 }
 
