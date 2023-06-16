@@ -157,7 +157,7 @@ pub fn test_string_and_numbers() {
         panic_test!("Lexer test more tokens", "Error expected the fifth token of of lexer tokens to be Some(String) but got None");
     };
     assert_eq!(fifth_token.token_type, Tokens::NegativeNumber);
-    assert_eq!(fifth_token.value, "10");
+    assert_eq!(fifth_token.value, "-10");
 }
 
 #[test]
