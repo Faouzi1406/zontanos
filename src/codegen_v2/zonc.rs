@@ -30,7 +30,7 @@ impl<'ctx> GenC<'ctx> for CodeGen<'ctx> {
     }
 
     fn gen_getchar(&self) -> FunctionValue<'ctx> {
-        let getchar_type = self.context.i8_type().fn_type(&[], false);
+        let getchar_type = self.context.i32_type().fn_type(&[], false);
         let getchar = self
             .module
             .add_function("getchar", getchar_type, Some(Linkage::External));

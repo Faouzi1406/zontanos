@@ -79,7 +79,7 @@ impl Parser {
                     }
                     Operator::LessEq => {
                         let other_value = self.parse_not_know_type_value()?;
-                        statements.push(Statements::MoreEq(value, other_value));
+                        statements.push(Statements::LessEq(value, other_value));
                     }
                     Operator::OrOr => {
                         let other_value = self.parse_not_know_type_value()?;

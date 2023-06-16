@@ -6,7 +6,6 @@ mod parser_v2;
 mod zon_parser;
 
 use inkwell::context::Context;
-use parser_v2::parser::math::Stack;
 use zontanos::codegen_v2::CodeGen;
 use zontanos::parser_v2::parser::Parser;
 
@@ -48,6 +47,7 @@ fn main() -> Result<(), &'static str> {
     };
         return Ok(());
     };
+
 
     Ok(())
 }

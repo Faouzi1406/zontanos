@@ -6,7 +6,7 @@ impl From<&str> for Tokens {
         match value {
             // All normal token values
             "!" => Tokens::Bang,
-            "/" => Tokens::Slash,
+            "/" => Tokens::Op(Operator::Slash),
             "(" => Tokens::OpenBrace,
             ")" => Tokens::CloseBrace,
             "{" => Tokens::OpenCurlyBracket,
@@ -66,7 +66,7 @@ impl From<char> for Tokens {
         match value {
             // All normal token values
             '!' => Tokens::Bang,
-            '/' => Tokens::Slash,
+            '/' => Tokens::Op(Operator::Slash),
             '(' => Tokens::OpenBrace,
             ')' => Tokens::CloseBrace,
             '{' => Tokens::OpenCurlyBracket,

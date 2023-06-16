@@ -19,6 +19,8 @@ pub enum Tokens {
     String,
     /// any valid sequence of numbers that isn't a floating point number  
     Number,
+    /// Any valid negative number '-11111'
+    NegativeNumber,
     /// any valid sequence of numbers that is a floating point number
     FloatNumber,
     /// true
@@ -33,8 +35,6 @@ pub enum Tokens {
     Comma,
     /// !
     Bang,
-    /// /
-    Slash,
     /// .
     Dot,
     /// A tab
@@ -94,6 +94,8 @@ pub enum Operator {
     TimesIs,
     /// -=
     MinusIs,
+    /// /
+    Slash,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -188,7 +190,7 @@ impl std::error::Error for TokenErrorMessages {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub line: usize,
     pub token_type: Tokens,
@@ -652,6 +654,21 @@ impl Tokenize for Tokenizer {
                 Some(char) => match char {
                     '=' => {
                         return Token::new(line, "-=".into(), "-=");
+                    }
+                    '0'..='9'  => {
+                        let mut str_nums = String::from("-");
+                        str_nums.push(char);
+
+                        while let Some(char) = self.next() {
+                            match char {
+                                '0'..='9' => str_nums.push(char),
+                                _ => {
+                                    self.advance_back(1);
+                                    return Token::new(line, Tokens::NegativeNumber, &str_nums);
+                                }
+                            }
+                        }
+                        return Token::new(line, Tokens::NegativeNumber, &str_nums);
                     }
                     _ => {
                         self.advance_back(1);

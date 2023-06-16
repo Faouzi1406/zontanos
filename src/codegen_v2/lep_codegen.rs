@@ -26,7 +26,7 @@ impl<'ctx> CodeGen<'ctx> {
             return Err("as of right now a if block must have a else block, this will get changed. :(".into())
         };
 
-        let if_do = self.gen_block(func, &if_block , Some("if_do"))?;
+        let if_do = self.gen_block(func, &if_block , Some("if_then_do"))?;
         self.builder.position_at_end(entry);
         let else_do = self.gen_block(func, &else_block, Some("else_do"))?;
         self.builder.position_at_end(entry);
@@ -36,7 +36,7 @@ impl<'ctx> CodeGen<'ctx> {
 
     fn gen_case(&self, statements: &'ctx Vec<Statements>, in_block: Option<&str>) -> CompileResult<IntValue> {
         let mut stack: LinkedList<IntValue> = LinkedList::new();
-        let mut statements = statements.clone().iter();
+        let mut statements = statements.iter();
 
         while let Some(statement) = statements.next() {
             if let Statements::Or = statement {
@@ -93,7 +93,7 @@ impl<'ctx> CodeGen<'ctx> {
                 let value = self.gen_i32_case(lhs, rhs, IntPredicate::SGE, in_block)?;
                 Ok(value)
             }
-            Statements::OrOr(lhs, rhs) => {
+            Statements::EqEq(lhs, rhs) => {
                 let value = self.gen_i32_case(lhs, rhs, IntPredicate::EQ, in_block)?;
                 Ok(value)
             }
@@ -130,8 +130,8 @@ impl<'ctx> CodeGen<'ctx> {
                 } else {
                     if get_ident.is_int_value() {
                         let int_value = get_ident.into_int_value();
-                    let i32_type = self.context.i32_type();
-                    let i32_value = i32_type.const_int(*number as u64, false);
+                        let i32_type = self.context.i32_type();
+                        let i32_value = i32_type.const_int(*number as u64, false);
                         Ok(self.builder.build_int_compare(operator, int_value, i32_value,  "comp"))
                     } else {
                         Err("Can't compare none integer values".into())
@@ -147,13 +147,13 @@ impl<'ctx> CodeGen<'ctx> {
                     };
                     let i32_type = self.context.i32_type();
                     let i32_value = i32_type.const_int(*number as u64, false);
-                    Ok(self.builder.build_int_compare(operator, value, i32_value, "comp"))
+                    Ok(self.builder.build_int_compare(operator, i32_value, value, "comp"))
                 } else {
                     if get_ident.is_int_value() {
                         let int_value = get_ident.into_int_value();
                     let i32_type = self.context.i32_type();
                     let i32_value = i32_type.const_int(*number as u64, false);
-                        Ok(self.builder.build_int_compare(operator, int_value, i32_value,  "comp"))
+                        Ok(self.builder.build_int_compare(operator, i32_value, int_value, "comp"))
                     } else {
                         Err("Can't compare none integer values".into())
                     }
@@ -165,14 +165,14 @@ impl<'ctx> CodeGen<'ctx> {
                     let (load1, load2) = 
                         (self.builder.build_load(lhv.into_pointer_value(), "load1"), self.builder.build_load(rhv.into_pointer_value(), "load2"));
                     let (lhv, rhv) = (load1.into_int_value(), load2.into_int_value());
-                    Ok(self.builder.build_int_compare(operator, lhv, rhv,  "comp"))
+                    Ok(self.builder.build_int_compare(operator,  rhv, lhv,  "comp"))
                 } else if lhv.is_int_value() && rhv.is_int_value() {
-                    Ok(self.builder.build_int_compare(operator, lhv.into_int_value(), rhv.into_int_value(),  "comp"))
+                    Ok(self.builder.build_int_compare(operator,   rhv.into_int_value(), lhv.into_int_value(),  "comp"))
                 } else {
                     Err("Can't compare none integer values".into())
                 }
             }
-            _ => Err("the statement given couldn't be compared, when comparing values they must be of the same type.".into())
+            (one, other) => Err(format!("the statement given couldn't be compared, when comparing values they must be of the same type. got {one:#?} but other was {other:#?}").into())
         }
     }
 }
