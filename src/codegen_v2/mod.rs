@@ -308,6 +308,11 @@ impl<'ctx> CodeGen<'ctx> {
                     self.builder.build_return(Some(&arr));
                     return Ok(());
                 }
+                TypeValues::Math(math) => {
+                    let math = self.gen_math_value(math, block_name)?;
+                    self.builder.build_return(Some(&math));
+                    return Ok(())
+                }
                 TypeValues::Identifier(ident) => {
                     let ident = self.get_ident(&ident, block_name)?;
                     let value = ident.as_any_value_enum();

@@ -79,7 +79,8 @@ else_do:                                          ; preds = %entry
 
 define i32 @testing(i32 %0) {
 entry:
-  ret i32 %0
+  %"0" = add i32 %0, 10
+  ret i32 %"0"
 }
 
 define void @main() {
