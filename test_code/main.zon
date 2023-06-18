@@ -46,7 +46,7 @@ fn print_all_chars() void {
 }
 
 fn testing(value:i32) i32 {
-	return value
+	return ( value + 10 )
 }
 
 fn main() void {
