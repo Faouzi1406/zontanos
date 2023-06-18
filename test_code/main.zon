@@ -49,10 +49,21 @@ fn testing(value:i32) i32 {
 	return ( value + 10 )
 }
 
+fn factorial(n: i32) i32 {
+	if n <= 1 {
+		return 1;
+	} else {
+		return (n * factorial((n - 1)))
+	}
+}
+
 fn main() void {
 	let testing: i32 = (1 + 2 * 3)
 	let some: i32 = (10 * testing - 20 + 20 * 20 * (20 / 10) + 10 + testing + testing(20))
-	printf(^"First try... {%d} %c", some,'\n')
+	let fac: i32 = factorial(5);
+
+	//printf(^"First try... {%d} %c", some,'\n')
+	printf(^"factorial: {%d} %c", fac,'\n')
 
 	testing((10 + 20))
 
