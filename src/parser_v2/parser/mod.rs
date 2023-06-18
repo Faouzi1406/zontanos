@@ -474,6 +474,10 @@ impl Parser {
                 value_holder.value = value;
                 Ok(value_holder)
             }
+            Tokens::OpenBrace => {
+                let math_value = self.parse_math_statement()?;
+                Ok(TypeValues::Math(math_value).into())
+            }
             Tokens::BoolTrue => Ok(Value {
                 value: TypeValues::True,
                 is_ptr: false,
@@ -639,17 +643,22 @@ impl Parser {
 
         while let Some(token) = self.next() {
             match &token.token_type {
+                Tokens::Identifier => {
+                    self.walk_back(1);
+                    let value = self.parse_not_know_type_value()?;
+                    math.0.push(value);
+                }
                 Tokens::NegativeNumber => math
                     .0
-                    .push(TypeValues::I32Neg(token.value.parse::<i32>().unwrap())),
+                    .push(TypeValues::I32Neg(token.value.parse::<i32>().unwrap()).into()),
                 Tokens::Number => math
                     .0
-                    .push(TypeValues::I32(token.value.parse::<i32>().unwrap())),
+                    .push(TypeValues::I32(token.value.parse::<i32>().unwrap()).into()),
                 Tokens::Op(op) => match op {
-                    Operator::Plus => math.0.push(TypeValues::Operator(op.clone())),
-                    Operator::Times => math.0.push(TypeValues::Operator(op.clone())),
-                    Operator::Slash => math.0.push(TypeValues::Operator(op.clone())),
-                    Operator::Min => math.0.push(TypeValues::Operator(op.clone())),
+                    Operator::Plus => math.0.push(TypeValues::Operator(op.clone()).into()),
+                    Operator::Times => math.0.push(TypeValues::Operator(op.clone()).into()),
+                    Operator::Slash => math.0.push(TypeValues::Operator(op.clone()).into()),
+                    Operator::Min => math.0.push(TypeValues::Operator(op.clone()).into()),
                     _ => {
                         return Err(self.invalid_token_in_expr(
                             "operator statement",
@@ -659,7 +668,7 @@ impl Parser {
                 },
                 Tokens::OpenBrace => {
                     let math_expr = self.parse_math_statement()?;
-                    math.0.push(TypeValues::Math(math_expr));
+                    math.0.push(TypeValues::Math(math_expr).into());
                 }
                 Tokens::CloseBrace => return Ok(math),
                 _ => {
