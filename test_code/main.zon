@@ -29,8 +29,6 @@ fn recurse(value: i32, range: i32) i32 {
 		v += 1
 	 	return recurse(v, range)
 	}
-
-	return 18
 }
 
 fn print_all_chars() void {
@@ -47,10 +45,16 @@ fn print_all_chars() void {
 	}
 }
 
+fn testing(value:i32) i32 {
+	return value
+}
+
 fn main() void {
 	let testing: i32 = (1 + 2 * 3)
-	let some: i32 = (10 - 20 + 20 * 20 * (20 / 10) + 10)
-	printf(^"First try... {%d} %c", testing,'\n')
+	let some: i32 = (10 * testing - 20 + 20 * 20 * (20 / 10) + 10 + testing + testing(20))
+	printf(^"First try... {%d} %c", some,'\n')
+
+	testing((10 + 20))
 
 	// This is for later, not remove, nor keep, really...
 	//recurse(0, 200)

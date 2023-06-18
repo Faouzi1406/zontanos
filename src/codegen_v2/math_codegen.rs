@@ -1,26 +1,34 @@
 use std::collections::LinkedList;
 
-use inkwell::values::IntValue;
+use inkwell::values::{AnyValue, IntValue};
 
 use crate::{
     parser_v2::ast::{Math, TypeValues},
-    zon_parser::lexer::{Operator, Tokens},
+    zon_parser::lexer::Operator,
 };
 
 use super::{CodeGen, CompileResult};
 
 pub trait MathStatementCodegeneration<'ctx> {
-    fn gen_math_value(&self, math_statement: &'ctx Math) -> CompileResult<IntValue<'ctx>>;
+    fn gen_math_value(
+        &self,
+        math_statement: &'ctx Math,
+        current_block: Option<&str>,
+    ) -> CompileResult<IntValue<'ctx>>;
 }
 
 impl<'ctx> MathStatementCodegeneration<'ctx> for CodeGen<'ctx> {
-    fn gen_math_value(&self, math_statement: &'ctx Math) -> CompileResult<IntValue<'ctx>> {
+    fn gen_math_value(
+        &self,
+        math_statement: &'ctx Math,
+        current_block: Option<&str>,
+    ) -> CompileResult<IntValue<'ctx>> {
         let mut operator_stack: LinkedList<&Operator> = LinkedList::new();
         let mut num_stack: LinkedList<IntValue> = LinkedList::new();
         let mut math_statements = math_statement.0.iter().enumerate();
 
-        while let Some((_, value)) = math_statements.next() {
-            match &value {
+        while let Some((i, value)) = math_statements.next() {
+            match &value.value {
                 TypeValues::I32(value) => {
                     let int_type = self.context.i32_type();
                     let int_value = int_type.const_int(*value as u64, false);
@@ -33,8 +41,46 @@ impl<'ctx> MathStatementCodegeneration<'ctx> for CodeGen<'ctx> {
                     num_stack.push_back(int_value);
                 }
                 TypeValues::Math(math) => {
-                    let value = self.gen_math_value(math)?;
+                    let value = self.gen_math_value(math, current_block)?;
                     num_stack.push_back(value);
+                }
+                TypeValues::Identifier(ident) => {
+                    let ident = self.get_ident(&ident, current_block)?;
+                    if ident.is_int_value() {
+                        let int_value = ident.into_int_value();
+                        num_stack.push_back(int_value);
+                        continue;
+                    }
+
+                    if ident.is_pointer_value() {
+                        let load = self
+                            .builder
+                            .build_load(ident.into_pointer_value(), &i.to_string());
+
+                        if load.is_int_value() {
+                            num_stack.push_back(load.into_int_value());
+                            continue;
+                        }
+                    }
+
+                    return Err("Expected int value for Identifier".into());
+                }
+                TypeValues::FunctionCall(function_call, arguments) => {
+                    let gen_call = self.gen_func_call(
+                        function_call,
+                        arguments,
+                        Some(&i.to_string()),
+                        current_block,
+                    )?;
+                    let type_value = gen_call.as_any_value_enum();
+
+                    if type_value.is_int_value() {
+                        let value = type_value.into_int_value();
+                        num_stack.push_back(value);
+                        continue;
+                    }
+
+                    return Err("Expected int value for Function call".into());
                 }
                 TypeValues::Operator(op) => match op {
                     Operator::Times => {
@@ -46,9 +92,9 @@ impl<'ctx> MathStatementCodegeneration<'ctx> for CodeGen<'ctx> {
                            return Err("Couldn't execute the times operator considering there is no number on the right hand side of it...".into());
                        };
 
-                        if let TypeValues::I32(num) = value {
+                        if let TypeValues::I32(num) = value.value {
                             let int_type = self.context.i32_type();
-                            let rhs = int_type.const_int(*num as u64, false);
+                            let rhs = int_type.const_int(num as u64, false);
 
                             let mul = self.builder.build_int_mul(lhs, rhs, &index.to_string());
                             num_stack.push_back(mul);
@@ -56,12 +102,58 @@ impl<'ctx> MathStatementCodegeneration<'ctx> for CodeGen<'ctx> {
                             continue;
                         };
 
-                        if let TypeValues::Math(math) = value {
-                            let rhs = self.gen_math_value(math)?;
+                        if let TypeValues::Math(math) = &value.value {
+                            let rhs = self.gen_math_value(&math, current_block)?;
                             let mul = self.builder.build_int_mul(lhs, rhs, &index.to_string());
                             num_stack.push_back(mul);
 
                             continue;
+                        }
+
+                        if let TypeValues::FunctionCall(function_call, arguments) = &value.value {
+                            let gen_call = self.gen_func_call(
+                                function_call,
+                                arguments,
+                                Some(&i.to_string()),
+                                current_block,
+                            )?;
+                            let type_value = gen_call.as_any_value_enum();
+
+                            if type_value.is_int_value() {
+                                let rhs = type_value.into_int_value();
+                                let mul = self.builder.build_int_mul(lhs, rhs, &index.to_string());
+                                num_stack.push_back(mul);
+
+                                continue;
+                            }
+                        }
+
+                        if let TypeValues::Identifier(ident) = &value.value {
+                            let get_ident = self.get_ident(ident, current_block)?;
+
+                            if get_ident.is_int_value() {
+                                let rhs = get_ident.into_int_value();
+                                let mul = self.builder.build_int_mul(lhs, rhs, &index.to_string());
+                                num_stack.push_back(mul);
+
+                                continue;
+                            }
+
+                            if get_ident.is_pointer_value() {
+                                let load = self
+                                    .builder
+                                    .build_load(get_ident.into_pointer_value(), &i.to_string());
+                                if load.is_int_value() {
+                                    let rhs = load.into_int_value();
+                                    let mul =
+                                        self.builder.build_int_mul(lhs, rhs, &index.to_string());
+                                    num_stack.push_back(mul);
+
+                                    continue;
+                                }
+
+                                return Err("expected a int value from Identifier".into());
+                            }
                         }
 
                         return Err("Couldn't execute the times operator considering there is no number on the right hand side of it...".into());
@@ -75,20 +167,24 @@ impl<'ctx> MathStatementCodegeneration<'ctx> for CodeGen<'ctx> {
                            return Err("Couldn't execute the times operator considering there is no number on the right hand side of it...".into());
                        };
 
-                        if let TypeValues::I32(num) = value {
+                        if let TypeValues::I32(num) = value.value {
                             let int_type = self.context.i32_type();
-                            let rhs = int_type.const_int(*num as u64, false);
+                            let rhs = int_type.const_int(num as u64, false);
 
-                            let div = self.builder.build_int_signed_div(lhs, rhs, &index.to_string());
+                            let div =
+                                self.builder
+                                    .build_int_signed_div(lhs, rhs, &index.to_string());
                             num_stack.push_back(div);
 
                             continue;
                         };
 
-                        if let TypeValues::Math(math) = value {
-                            let rhs = self.gen_math_value(math)?;
+                        if let TypeValues::Math(math) = &value.value {
+                            let rhs = self.gen_math_value(&math, current_block)?;
 
-                            let div = self.builder.build_int_signed_div(lhs, rhs, &index.to_string());
+                            let div =
+                                self.builder
+                                    .build_int_signed_div(lhs, rhs, &index.to_string());
                             num_stack.push_back(div);
 
                             continue;

@@ -497,7 +497,7 @@ impl<'ctx> CodeGen<'ctx> {
             }
             TypeValues::Math(math) => {
                 // TODO: Fix error here, don't just expect 
-                let value = self.gen_math_value(math).expect("couldn't parse math statement");
+                let value = self.gen_math_value(math, block_name).expect("couldn't parse math statement");
                 self.builder.build_store(alloc_ptr, value);
             }
             TypeValues::Identifier(ident) => {
@@ -642,6 +642,10 @@ impl<'ctx> CodeGen<'ctx> {
                         let call = call_type.into_array_value();
                         args.push(call.into());
                     }
+                }
+                TypeValues::Math(math) => {
+                    let math_value = self.gen_math_value(math, block_name)?;
+                    args.push(math_value.into());
                 }
                 TypeValues::Identifier(ident) if arg.is_ptr => {
                     // TODO: FIX THIS DON'T CONTINUE RETURN ERR, THIS IS JUST FOR NOW, OKAY

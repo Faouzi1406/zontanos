@@ -126,7 +126,7 @@ pub struct FunctionCall {
 ///
 /// All other tokens should throw a parse error
 #[derive(Debug, PartialEq, Clone)]
-pub struct Math(pub Vec<TypeValues>);
+pub struct Math(pub Vec<Value>);
 
 /// [`Types`]
 /// All current types in a language
